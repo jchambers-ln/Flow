@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="ECLOutput"
+	iconfile="output.png"
+	description="Output"
+	tooltip="Output" 
+	category="HPCC Systems"
+	classname="org.hpccsystems.pentaho.job.ecloutput.ECLOutput">
+            
+    <libraries>
+	  <library name="../../hpcc-common/javaecl-0.1.0.jar"/>
+        <library name="../../hpcc-common/eclgui.jar"/>
+        <library name="ecloutput.jar"/>
+    </libraries>            
+</plugin>

@@ -1,3 +1,9 @@
+This project is a Fork of Pentaho Spoon, the modifications needed exceeded simple plugins so we are starting the process of
+integrating and changing the program to suite our needs. Below this line is the orginal readme of the Pentaho project for help
+in building this project.
+
+_______________________________________________________________________________________
+
 As of January 14, 2013 the Kettle project has changed:
 
   - Apache Ivy support has been added to resolve dependencies.  This has eliminated

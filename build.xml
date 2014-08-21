@@ -910,4 +910,19 @@
     <xslt style="${checkstyle.stylesheet.file}" basedir="${checkstyle.reports.dir}/xml"
           includes="*-checkstyle-report.xml" destdir="${checkstyle.reports.dir}/html"/>
   </target>
+	
+	
+ 
+	 <target name="bundle-flow">
+  		<taskdef name="bundleapp" classname="com.oracle.appbundler.AppBundlerTask" classpath="lib/appbundler-1.0.jar" />
+	 	 <property environment="env" />
+	<bundleapp outputdirectory="dist"
+	       name="Flow"
+	       displayname="HPCC Flow"
+	       mainclassname="org/pentaho/commons/launcher/Launcher"
+		   identifier="org.pentaho.commons.launcher.Launcher">
+		   <classpath file="dist/launcher/pentaho-application-launcher-TRUNK-SNAPSHOT.jar" />
+	</bundleapp>
+   </target>
+			
 </project>

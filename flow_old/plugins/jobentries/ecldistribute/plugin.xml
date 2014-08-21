@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="ECLDistribute"
+	iconfile="distribute.png"
+	description="Distribute"
+	tooltip="Distribute" 
+	category="HPCC Systems"
+	classname="org.hpccsystems.pentaho.job.ecldistribute.ECLDistribute">
+            
+    <libraries>
+	<library name="../../hpcc-common/javaecl-0.1.0.jar"/>
+      <library name="../../hpcc-common/eclgui.jar"/>
+      <library name="ecldistribute.jar"/>
+    </libraries>            
+</plugin>

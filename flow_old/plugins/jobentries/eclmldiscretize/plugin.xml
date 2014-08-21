@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<plugin id="ECLML_Discretize"
+	iconfile="discretize.png"
+	description="Discretize"
+	tooltip="Associate" 
+	category="HPCC Systems - ML"
+	classname="org.hpccsystems.pentaho.job.eclmldiscretize.ECLML_Discretize">
+            
+    <libraries>
+	  <library name="../../hpcc-common/javaecl-0.1.0.jar"/>
+        <library name="../../hpcc-common/eclgui.jar"/>
+        <library name="eclmldiscretize.jar"/>
+    </libraries>            
+</plugin>

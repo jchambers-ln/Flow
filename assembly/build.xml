@@ -34,6 +34,7 @@
 
   <target name="resolve-all" depends="init,resolve,resolve-swtlibs,resolve-launcher,resolve-plugins"/>
 	
+	
   <target name="assemble" depends="resolve-swtlibs,subfloor-pkg.assemble" description="copy jar files to distribution directory" >
   	<echo>Construct the distribution package...</echo>
     <!-- make JavaApplicationStub executable for OSX -->
@@ -173,4 +174,5 @@
       </fileset>
     </unzip>
   </target>  
+	
 </project>

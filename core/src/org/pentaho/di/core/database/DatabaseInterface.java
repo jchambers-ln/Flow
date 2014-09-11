@@ -97,6 +97,17 @@ public interface DatabaseInterface extends Cloneable {
   public void setName( String name );
 
   /**
+   * @return Returns the un-escaped connection Name.
+   */
+  public String getDisplayName();
+
+  /**
+   * @param displayName
+   *          The un-escaped connection Name to set.
+   */
+  public void setDisplayName( String displayName );
+
+  /**
    * @return Returns the databaseName.
    */
   public String getDatabaseName();
@@ -762,7 +773,7 @@ public interface DatabaseInterface extends Cloneable {
   public String getSQLTableExists( String tablename );
 
   /**
-   * @param columnname
+   * @param column
    *          The column to verify the existance for
    * @param tablename
    *          The table to verify the existance for
@@ -815,7 +826,7 @@ public interface DatabaseInterface extends Cloneable {
   public boolean isForcingIdentifiersToUpperCase();
 
   /**
-   * @param forceLowerCase
+   * @param forceUpperCase
    *          true if all identifiers should be forced to upper case
    */
   public void setForcingIdentifiersToUpperCase( boolean forceUpperCase );
@@ -865,8 +876,7 @@ public interface DatabaseInterface extends Cloneable {
    * @return
    * @throws KettleDatabaseException
    */
-  public boolean checkIndexExists( Database database, String schemaName, String tableName, String[] idxFields )
-    throws KettleDatabaseException;
+  public boolean checkIndexExists( Database database, String schemaName, String tableName, String[] idxFields ) throws KettleDatabaseException;
 
   /**
    * @return true if the database supports sequences with a maximum value option. The default is true.
@@ -1028,16 +1038,15 @@ public interface DatabaseInterface extends Cloneable {
    * @return next batch ID
    * @throws KettleDatabaseException
    */
-  Long getNextBatchId( DatabaseMeta dbm, Database ldb, String schemaName, String tableName, String fieldName )
-    throws KettleDatabaseException;
+  Long getNextBatchId( DatabaseMeta dbm, Database ldb, String schemaName, String tableName, String fieldName ) throws KettleDatabaseException;
 
   /**
    * Returns the tablespace DDL fragment for a "Data" tablespace. In most databases that use tablespaces this is where
    * the tables are to be created.
    *
-   * @param VariableSpace
+   * @param variables
    *          variables used for possible substitution
-   * @param DatabaseMeta
+   * @param databaseMeta
    *          databaseMeta the database meta used for possible string enclosure of the tablespace. This method needs
    *          this as this is done after environmental substitution.
    *
@@ -1049,9 +1058,9 @@ public interface DatabaseInterface extends Cloneable {
   /**
    * Returns the tablespace DDL fragment for a "Index" tablespace.
    *
-   * @param VariableSpace
+   * @param variables
    *          variables used for possible substitution
-   * @param DatabaseMeta
+   * @param databaseMeta
    *          databaseMeta the database meta used for possible string enclosure of the tablespace. This method needs
    *          this as this is done after environmental substitution.
    *
@@ -1072,8 +1081,7 @@ public interface DatabaseInterface extends Cloneable {
    * @return The correctly converted Kettle data type corresponding to the valueMeta description.
    * @throws KettleDatabaseException
    */
-  public Object getValueFromResultSet( ResultSet resultSet, ValueMetaInterface valueMeta, int index )
-    throws KettleDatabaseException;
+  public Object getValueFromResultSet( ResultSet resultSet, ValueMetaInterface valueMeta, int index ) throws KettleDatabaseException;
 
   /**
    * @return true if the database supports the use of safe-points and if it is appropriate to ever use it (default to
@@ -1100,8 +1108,7 @@ public interface DatabaseInterface extends Cloneable {
    * @throws KettleValueException
    *           in case there is a data conversion error.
    */
-  public String getSQLValue( ValueMetaInterface valueMeta, Object valueData, String dateFormat )
-    throws KettleValueException;
+  public String getSQLValue( ValueMetaInterface valueMeta, Object valueData, String dateFormat ) throws KettleValueException;
 
   /**
    * @return true if this database only supports metadata retrieval on a result set, never on a statement (even if the

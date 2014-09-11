@@ -50,6 +50,7 @@ import org.pentaho.di.trans.step.StepDataInterface;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
+import org.pentaho.di.trans.step.utils.RowMetaUtils;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
 
@@ -318,8 +319,7 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
     this.ignoreFlagField = ignoreFlagField;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -353,8 +353,7 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
     return retval;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       String csize;
       int nrkeys, nrvalues;
@@ -465,8 +464,7 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       databaseMeta = rep.loadDatabaseMetaFromStepAttribute( id_step, "id_connection", databases );
       skipLookup = rep.getStepAttributeBoolean( id_step, "skip_lookup" );
@@ -511,8 +509,7 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveDatabaseMetaStepAttribute( id_transformation, id_step, "id_connection", databaseMeta );
       rep.saveStepAttribute( id_transformation, id_step, "skip_lookup", skipLookup );
@@ -754,11 +751,14 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
   }
 
   public SQLStatement getSQLStatements( TransMeta transMeta, StepMeta stepMeta, RowMetaInterface prev,
-    Repository repository, IMetaStore metaStore ) {
+    Repository repository, IMetaStore metaStore ) throws KettleStepException  {
     SQLStatement retval = new SQLStatement( stepMeta.getName(), databaseMeta, null ); // default: nothing to do!
 
     if ( databaseMeta != null ) {
       if ( prev != null && prev.size() > 0 ) {
+        // Copy the row
+        RowMetaInterface tableFields = RowMetaUtils.getRowMetaForUpdate( prev, keyLookup, keyStream,
+            updateLookup, updateStream );
         if ( !Const.isEmpty( tableName ) ) {
           String schemaTable = databaseMeta.getQuotedSchemaTableCombination( schemaName, tableName );
 
@@ -771,7 +771,7 @@ public class UpdateMeta extends BaseStepMeta implements StepMetaInterface {
               prev.addValueMeta( new ValueMeta( getIgnoreFlagField(), ValueMetaInterface.TYPE_BOOLEAN ) );
             }
 
-            String cr_table = db.getDDL( schemaTable, prev, null, false, null, true );
+            String cr_table = db.getDDL( schemaTable, tableFields, null, false, null, true );
 
             String cr_index = "";
             String[] idx_fields = null;

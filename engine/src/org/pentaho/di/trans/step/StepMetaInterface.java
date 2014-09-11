@@ -235,8 +235,7 @@ public interface StepMetaInterface {
    * @deprecated
    */
   @Deprecated
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, Map<String, Counter> counters )
-    throws KettleXMLException;
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, Map<String, Counter> counters ) throws KettleXMLException;
 
   /**
    * Load the values for this step from an XML Node
@@ -250,8 +249,7 @@ public interface StepMetaInterface {
    * @throws KettleXMLException
    *           When an unexpected XML error occurred. (malformed etc.)
    */
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException;
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException;
 
   /**
    * Save the steps data into a Kettle repository
@@ -283,8 +281,7 @@ public interface StepMetaInterface {
    * @throws KettleException
    *           When an unexpected error occurred (database, network, etc)
    */
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException;
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException;
 
   /**
    * Read the steps information from a Kettle repository
@@ -319,8 +316,7 @@ public interface StepMetaInterface {
    * @throws KettleException
    *           When an unexpected error occurred (database, network, etc)
    */
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException;
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException;
 
   /**
    * Checks the settings of this step and puts the findings in a remarks List.
@@ -491,8 +487,7 @@ public interface StepMetaInterface {
    * @deprecated in favor of the getSQLStatements method with repository and metaStore arguments.
    */
   @Deprecated
-  public SQLStatement getSQLStatements( TransMeta transMeta, StepMeta stepMeta, RowMetaInterface prev )
-    throws KettleStepException;
+  public SQLStatement getSQLStatements( TransMeta transMeta, StepMeta stepMeta, RowMetaInterface prev ) throws KettleStepException;
 
   /**
    * Standard method to return an SQLStatement object with SQL statements that the step needs in order to work
@@ -598,8 +593,7 @@ public interface StepMetaInterface {
    * @return the filename of the exported resource
    */
   public String exportResources( VariableSpace space, Map<String, ResourceDefinition> definitions,
-    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore )
-    throws KettleException;
+    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore ) throws KettleException;
 
   /**
    * @return The StepMeta object to which this metadata class belongs. With this, we can see to which transformation
@@ -655,6 +649,13 @@ public interface StepMetaInterface {
   public StepMetaInjectionInterface getStepMetaInjectionInterface();
 
   /**
+   * @return The step metadata itself, not the metadata description.  
+   * For lists it will have 0 entries in case there are no entries.
+   * @throws KettleException
+   */
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException;
+
+  /**
    * @return The supported transformation types that this step supports.
    */
   public TransformationType[] getSupportedTransformationTypes();
@@ -687,6 +688,12 @@ public interface StepMetaInterface {
   public boolean[] isReferencedObjectEnabled();
 
   /**
+   * @return A description of the active referenced object in a transformation.  
+   * Null if nothing special needs to be done or if the active metadata isn't different from design.
+   */
+  public String getActiveReferencedObjectDescription();
+
+  /**
    * Load the referenced object
    *
    * @param index
@@ -700,7 +707,6 @@ public interface StepMetaInterface {
    * @return the referenced object once loaded
    * @throws KettleException
    */
-  public Object loadReferencedObject( int index, Repository rep, IMetaStore metaStore, VariableSpace space )
-    throws KettleException;
+  public Object loadReferencedObject( int index, Repository rep, IMetaStore metaStore, VariableSpace space ) throws KettleException;
 
 }

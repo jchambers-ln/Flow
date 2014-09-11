@@ -30,10 +30,15 @@ import static org.mockito.Mockito.when;
 import static org.pentaho.di.core.util.Assert.assertTrue;
 
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.pentaho.di.core.KettleClientEnvironment;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.logging.LoggingObjectInterface;
@@ -42,6 +47,10 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
 import org.pentaho.di.trans.step.StepMeta;
+import org.pentaho.di.trans.steps.loadsave.LoadSaveTester;
+import org.pentaho.di.trans.steps.loadsave.validator.ArrayLoadSaveValidator;
+import org.pentaho.di.trans.steps.loadsave.validator.FieldLoadSaveValidator;
+import org.pentaho.di.trans.steps.loadsave.validator.StringLoadSaveValidator;
 import org.pentaho.di.trans.steps.mock.StepMockHelper;
 
 import com.sun.jersey.api.container.httpserver.HttpServerFactory;
@@ -102,6 +111,11 @@ public class RestTest {
   private StepMockHelper<RestMeta, RestData> stepMockHelper;
   private HttpServer server;
 
+  @BeforeClass
+  public static void setupBeforeClass() throws KettleException {
+    KettleClientEnvironment.init();
+  }
+
   @Before
   public void setUp() throws Exception {
     stepMockHelper = new StepMockHelper<RestMeta, RestData>( "REST CLIENT TEST", RestMeta.class, RestData.class );
@@ -137,5 +151,32 @@ public class RestTest {
     Object[] out = ( (RestHandler) rest ).getOutputRow();
     System.out.println( Arrays.toString( out ) );
     assertTrue( Arrays.equals( expectedRow, out ) );
+  }
+
+  @Test
+  public void testLoadSaveRoundTrip() throws KettleException {
+    List<String> attributes =
+        Arrays.asList( "applicationType", "method", "url", "urlInField", "dynamicMethod", "methodFieldName",
+            "urlField", "bodyField", "httpLogin", "httpPassword", "proxyHost", "proxyPort", "preemptive",
+            "trustStoreFile", "trustStorePassword", "headerField", "headerName", "parameterField", "parameterName",
+            "fieldName", "resultCodeFieldName", "responseTimeFieldName" );
+
+    Map<String, FieldLoadSaveValidator<?>> fieldLoadSaveValidatorAttributeMap =
+        new HashMap<String, FieldLoadSaveValidator<?>>();
+
+    // Arrays need to be consistent length
+    FieldLoadSaveValidator<String[]> stringArrayLoadSaveValidator =
+        new ArrayLoadSaveValidator<String>( new StringLoadSaveValidator(), 25 );
+    fieldLoadSaveValidatorAttributeMap.put( "headerField", stringArrayLoadSaveValidator );
+    fieldLoadSaveValidatorAttributeMap.put( "headerName", stringArrayLoadSaveValidator );
+    fieldLoadSaveValidatorAttributeMap.put( "parameterField", stringArrayLoadSaveValidator );
+    fieldLoadSaveValidatorAttributeMap.put( "parameterName", stringArrayLoadSaveValidator );
+
+    LoadSaveTester loadSaveTester =
+        new LoadSaveTester( RestMeta.class, attributes, new HashMap<String, String>(), new HashMap<String, String>(),
+            fieldLoadSaveValidatorAttributeMap, new HashMap<String, FieldLoadSaveValidator<?>>() );
+
+    loadSaveTester.testRepoRoundTrip();
+    loadSaveTester.testXmlRoundTrip();
   }
 }

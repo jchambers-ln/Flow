@@ -112,7 +112,7 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param fieldInStream
+   * @param keyStream
    *          The fieldInStream to set.
    */
   public void setFieldInStream( String[] keyStream ) {
@@ -181,8 +181,7 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
     this.caseSensitive = caseSensitive;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -219,8 +218,7 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
     return retval;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       int nrkeys;
 
@@ -287,8 +285,7 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       int nrkeys = rep.countNrStepAttributes( id_step, "in_stream_name" );
 
@@ -315,8 +312,7 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       for ( int i = 0; i < fieldInStream.length; i++ ) {
         rep.saveStepAttribute( id_transformation, id_step, i, "in_stream_name", fieldInStream[i] );
@@ -342,12 +338,18 @@ public class ReplaceStringMeta extends BaseStepMeta implements StepMetaInterface
     int nrFields = fieldInStream == null ? 0 : fieldInStream.length;
     for ( int i = 0; i < nrFields; i++ ) {
       String fieldName = space.environmentSubstitute( fieldOutStream[i] );
-
+      ValueMetaInterface valueMeta;
       if ( !Const.isEmpty( fieldOutStream[i] ) ) {
         // We have a new field
-        ValueMetaInterface valueMeta = new ValueMeta( fieldName, ValueMeta.TYPE_STRING );
+        valueMeta = new ValueMeta( fieldName, ValueMeta.TYPE_STRING );
         valueMeta.setOrigin( name );
         inputRowMeta.addValueMeta( valueMeta );
+      } else {
+        valueMeta = inputRowMeta.searchValueMeta( fieldInStream[i] );
+        if ( valueMeta == null ) {
+          continue;
+        }
+        valueMeta.setStorageType( ValueMetaInterface.STORAGE_TYPE_NORMAL );
       }
     }
   }

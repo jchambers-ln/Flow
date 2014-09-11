@@ -33,7 +33,6 @@ import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.exception.KettleXMLException;
-import org.pentaho.di.core.row.RowMeta;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.row.ValueMetaInterface;
 import org.pentaho.di.core.variables.VariableSpace;
@@ -50,6 +49,7 @@ import org.pentaho.di.trans.step.StepDataInterface;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
+import org.pentaho.di.trans.step.utils.RowMetaUtils;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
 
@@ -274,8 +274,7 @@ public class InsertUpdateMeta extends BaseStepMeta implements StepMetaInterface 
     this.update = update;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -311,8 +310,7 @@ public class InsertUpdateMeta extends BaseStepMeta implements StepMetaInterface 
     return retval;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       String csize;
       int nrkeys, nrvalues;
@@ -430,8 +428,7 @@ public class InsertUpdateMeta extends BaseStepMeta implements StepMetaInterface 
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       databaseMeta = rep.loadDatabaseMetaFromStepAttribute( id_step, "id_connection", databases );
 
@@ -474,8 +471,7 @@ public class InsertUpdateMeta extends BaseStepMeta implements StepMetaInterface 
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveDatabaseMetaStepAttribute( id_transformation, id_step, "id_connection", databaseMeta );
       rep.saveStepAttribute( id_transformation, id_step, "commit", commitSize );
@@ -720,36 +716,8 @@ public class InsertUpdateMeta extends BaseStepMeta implements StepMetaInterface 
     if ( databaseMeta != null ) {
       if ( prev != null && prev.size() > 0 ) {
         // Copy the row
-        RowMetaInterface tableFields = new RowMeta();
-
-        // Now change the field names
-        // the key fields
-        if ( keyLookup != null ) {
-          for ( int i = 0; i < keyLookup.length; i++ ) {
-            ValueMetaInterface v = prev.searchValueMeta( keyStream[i] );
-            if ( v != null ) {
-              ValueMetaInterface tableField = v.clone();
-              tableField.setName( keyLookup[i] );
-              tableFields.addValueMeta( tableField );
-            } else {
-              throw new KettleStepException( "Unable to find field [" + keyStream[i] + "] in the input rows" );
-            }
-          }
-        }
-        // the lookup fields
-        for ( int i = 0; i < updateLookup.length; i++ ) {
-          ValueMetaInterface v = prev.searchValueMeta( updateStream[i] );
-          if ( v != null ) {
-            ValueMetaInterface vk = tableFields.searchValueMeta( updateStream[i] );
-            if ( vk == null ) { // do not add again when already added as key fields
-              ValueMetaInterface tableField = v.clone();
-              tableField.setName( updateLookup[i] );
-              tableFields.addValueMeta( tableField );
-            }
-          } else {
-            throw new KettleStepException( "Unable to find field [" + updateStream[i] + "] in the input rows" );
-          }
-        }
+        RowMetaInterface tableFields = RowMetaUtils.getRowMetaForUpdate( prev, keyLookup,
+            keyStream, updateLookup, updateStream );
 
         if ( !Const.isEmpty( tableName ) ) {
           Database db = new Database( loggingObject, databaseMeta );

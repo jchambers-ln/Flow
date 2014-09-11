@@ -96,23 +96,22 @@ public class JobExecutorParameters implements Cloneable {
   public String getXML() {
     StringBuffer xml = new StringBuffer( 200 );
 
-    xml.append( "    " ).append( XMLHandler.openTag( XML_TAG ) );
+    xml.append( "    " ).append( XMLHandler.openTag( XML_TAG ) ).append( Const.CR );
 
     for ( int i = 0; i < variable.length; i++ ) {
-      xml.append( "       " ).append( XMLHandler.openTag( XML_VARIABLES_TAG ) );
+      xml.append( "      " ).append( XMLHandler.openTag( XML_VARIABLES_TAG ) );
       xml.append( XMLHandler.addTagValue( "variable", variable[i], false ) );
       xml.append( XMLHandler.addTagValue( "field", field[i], false ) );
       xml.append( XMLHandler.addTagValue( "input", input[i], false ) );
       xml.append( XMLHandler.closeTag( XML_VARIABLES_TAG ) ).append( Const.CR );
     }
-    xml.append( "    " ).append( XMLHandler.addTagValue( "inherit_all_vars", inheritingAllVariables ) );
-    xml.append( "    " ).append( XMLHandler.closeTag( XML_TAG ) );
+    xml.append( "      " ).append( XMLHandler.addTagValue( "inherit_all_vars", inheritingAllVariables ) );
+    xml.append( "    " ).append( XMLHandler.closeTag( XML_TAG ) ).append( Const.CR );
 
     return xml.toString();
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     for ( int i = 0; i < variable.length; i++ ) {
       rep.saveStepAttribute( id_transformation, id_step, i, "parameter_variable", variable[i] );
       rep.saveStepAttribute( id_transformation, id_step, i, "parameter_field", field[i] );

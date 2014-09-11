@@ -77,7 +77,7 @@ public class StringCutMeta extends BaseStepMeta implements StepMetaInterface {
   }
 
   /**
-   * @param fieldInStream
+   * @param keyStream
    *          The fieldInStream to set.
    */
   public void setFieldInStream( String[] keyStream ) {
@@ -115,8 +115,7 @@ public class StringCutMeta extends BaseStepMeta implements StepMetaInterface {
     this.cutTo = cutTo;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode );
   }
 
@@ -193,8 +192,7 @@ public class StringCutMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
 
       int nrkeys = rep.countNrStepAttributes( id_step, "in_stream_name" );
@@ -212,8 +210,7 @@ public class StringCutMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
 
       for ( int i = 0; i < fieldInStream.length; i++ ) {
@@ -231,12 +228,18 @@ public class StringCutMeta extends BaseStepMeta implements StepMetaInterface {
   public void getFields( RowMetaInterface inputRowMeta, String name, RowMetaInterface[] info, StepMeta nextStep,
     VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
     for ( int i = 0; i < fieldOutStream.length; i++ ) {
+      ValueMetaInterface v;
       if ( !Const.isEmpty( fieldOutStream[i] ) ) {
-        ValueMetaInterface v =
-          new ValueMeta( space.environmentSubstitute( fieldOutStream[i] ), ValueMeta.TYPE_STRING );
+        v = new ValueMeta( space.environmentSubstitute( fieldOutStream[i] ), ValueMeta.TYPE_STRING );
         v.setLength( 100, -1 );
         v.setOrigin( name );
         inputRowMeta.addValueMeta( v );
+      } else {
+        v = inputRowMeta.searchValueMeta( fieldInStream[i] );
+        if ( v == null ) {
+          continue;
+        }
+        v.setStorageType( ValueMetaInterface.STORAGE_TYPE_NORMAL );
       }
     }
   }

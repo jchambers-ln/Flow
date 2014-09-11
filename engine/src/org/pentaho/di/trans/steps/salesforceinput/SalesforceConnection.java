@@ -97,8 +97,7 @@ public class SalesforceConnection {
   /**
    * Construct a new Salesforce Connection
    */
-  public SalesforceConnection( LogChannelInterface logInterface, String url, String username, String password )
-    throws KettleException {
+  public SalesforceConnection( LogChannelInterface logInterface, String url, String username, String password ) throws KettleException {
     this.log = logInterface;
     this.url = url;
     setUsername( username );
@@ -153,8 +152,7 @@ public class SalesforceConnection {
     this.queryAll = value;
   }
 
-  public void setCalendar( int recordsFilter, GregorianCalendar startDate, GregorianCalendar endDate )
-    throws KettleException {
+  public void setCalendar( int recordsFilter, GregorianCalendar startDate, GregorianCalendar endDate ) throws KettleException {
     this.startDate = startDate;
     this.endDate = endDate;
     this.recordsFilter = recordsFilter;
@@ -726,8 +724,25 @@ public class SalesforceConnection {
     }
   }
 
+  /**
+   * Method returns specified object's fields' names, use #getObjectFields to get fields itself
+   * @param objectName object name
+   * @return fields' names
+   * @throws KettleException in case of error
+   * @see #getObjectFields(String)
+   */
   public String[] getFields( String objectName ) throws KettleException {
-    Field[] fields = getObjectFields( objectName );
+    return getFields( getObjectFields( objectName ) );
+  }
+
+  /**
+   * Method returns names of the fields specified.
+   * @param fields fields
+   * @return fields' names
+   * @throws KettleException in case of error
+   * @see #getObjectFields(String)
+   */
+  public String[] getFields( Field[] fields ) throws KettleException {
     if ( fields != null ) {
       int nrFields = fields.length;
       String[] fieldsMapp = new String[nrFields];
@@ -779,8 +794,7 @@ public class SalesforceConnection {
     }
   }
 
-  public static MessageElement createMessageElement( String name, Object value, boolean useExternalKey )
-    throws Exception {
+  public static MessageElement createMessageElement( String name, Object value, boolean useExternalKey ) throws Exception {
 
     MessageElement me = null;
 
@@ -848,8 +862,7 @@ public class SalesforceConnection {
     TEMPLATE_XML_ELEMENT.removeAttribute( "xmlns:xsi" );
   }
 
-  public static MessageElement fromTemplateElement( String name, Object value, boolean setValue )
-    throws SOAPException {
+  public static MessageElement fromTemplateElement( String name, Object value, boolean setValue ) throws SOAPException {
     // Use the TEMPLATE org.w3c.dom.Element to create new Message Elements
     MessageElement me = new MessageElement( TEMPLATE_XML_ELEMENT );
     if ( setValue ) {

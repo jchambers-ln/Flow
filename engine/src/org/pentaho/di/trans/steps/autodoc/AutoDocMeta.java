@@ -26,7 +26,6 @@ import java.util.List;
 
 import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
-import org.pentaho.di.core.annotations.Step;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettleStepException;
@@ -55,10 +54,6 @@ import org.w3c.dom.Node;
  * @author matt
  * @version 4
  */
-@Step(
-  id = "AutoDoc", name = "AutoDoc.Step.Name", description = "AutoDoc.Step.Description",
-  i18nPackageName = "org.pentaho.di.autodoc", image = "org/pentaho/di/autodoc/autodoc.png",
-  categoryDescription = "Autodoc.Category.PDI-EE" )
 public class AutoDocMeta extends BaseStepMeta implements StepMetaInterface, AutoDocOptionsInterface {
   private static Class<?> PKG = AutoDocMeta.class; // for i18n purposes, needed by Translator2!!
 
@@ -91,8 +86,7 @@ public class AutoDocMeta extends BaseStepMeta implements StepMetaInterface, Auto
     outputType = OutputType.PDF;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode );
   }
 
@@ -170,8 +164,7 @@ public class AutoDocMeta extends BaseStepMeta implements StepMetaInterface, Auto
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       filenameField = rep.getStepAttributeString( id_step, "filename_field" );
       fileTypeField = rep.getStepAttributeString( id_step, "file_type_field" );
@@ -195,8 +188,7 @@ public class AutoDocMeta extends BaseStepMeta implements StepMetaInterface, Auto
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "filename_field", filenameField );
       rep.saveStepAttribute( id_transformation, id_step, "file_type_field", fileTypeField );

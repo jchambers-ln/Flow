@@ -50,8 +50,10 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
+import org.pentaho.di.trans.step.StepInjectionMetaEntry;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
+import org.pentaho.di.trans.step.StepMetaInjectionInterface;
 import org.pentaho.di.trans.step.StepMetaInterface;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
@@ -63,13 +65,11 @@ import org.w3c.dom.Node;
 public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterface {
   private static Class<?> PKG = TextFileOutputMeta.class; // for i18n purposes, needed by Translator2!!
 
-  public static final int FILE_COMPRESSION_TYPE_NONE = 0;
+  protected static final int FILE_COMPRESSION_TYPE_NONE = 0;
 
-  public static final int FILE_COMPRESSION_TYPE_ZIP = 1;
+  protected static final int FILE_COMPRESSION_TYPE_ZIP = 1;
 
-  public static final int FILE_COMPRESSION_TYPE_GZIP = 2;
-
-  public static final String[] fileCompressionTypeCodes = new String[] { "None", "Zip", "GZip", };
+  protected static final String[] fileCompressionTypeCodes = new String[] { "None", "Zip" };
 
   public static final String[] formatMapperLineTerminator = new String[] { "DOS", "UNIX", "CR", "None" };
 
@@ -617,8 +617,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
     this.fileNameField = fileNameField;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode );
   }
 
@@ -664,7 +663,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
       // Default createparentfolder to true if the tag is missing
       String createParentFolderTagValue = XMLHandler.getTagValue( stepnode, "create_parent_folder" );
       createparentfolder =
-        ( createParentFolderTagValue == null ) ? true : "Y".equalsIgnoreCase( createParentFolderTagValue );
+          ( createParentFolderTagValue == null ) ? true : "Y".equalsIgnoreCase( createParentFolderTagValue );
 
       headerEnabled = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "header" ) );
       footerEnabled = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "footer" ) );
@@ -688,7 +687,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
       fileAsCommand = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "is_command" ) );
       servletOutput = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "servlet_output" ) );
       doNotOpenNewFileInit =
-        "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "do_not_open_new_file_init" ) );
+          "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "do_not_open_new_file_init" ) );
       extension = XMLHandler.getTagValue( stepnode, "file", "extention" );
       fileAppended = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "append" ) );
       stepNrInFilename = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "split" ) );
@@ -850,7 +849,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
   }
 
   public String buildFilename( String filename, String extension, VariableSpace space, int stepnr, String partnr,
-    int splitnr, boolean ziparchive, TextFileOutputMeta meta ) {
+      int splitnr, boolean ziparchive, TextFileOutputMeta meta ) {
     SimpleDateFormat daf = new SimpleDateFormat();
 
     // Replace possible environment variables...
@@ -909,7 +908,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
   }
 
   public void getFields( RowMetaInterface row, String name, RowMetaInterface[] info, StepMeta nextStep,
-    VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
+      VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
     // No values are added to the row in this type of step
     // However, in case of Fixed length records,
     // the field precisions and lengths are altered!
@@ -940,7 +939,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
   @Override
   @Deprecated
   public void getFields( RowMetaInterface inputRowMeta, String name, RowMetaInterface[] info, StepMeta nextStep,
-    VariableSpace space ) throws KettleStepException {
+      VariableSpace space ) throws KettleStepException {
     getFields( inputRowMeta, name, info, nextStep, space, null, null );
   }
 
@@ -1004,8 +1003,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       separator = rep.getStepAttributeString( id_step, "separator" );
       enclosure = rep.getStepAttributeString( id_step, "enclosure" );
@@ -1066,8 +1064,8 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
         outputFields[i].setCurrencySymbol( rep.getStepAttributeString( id_step, i, "field_currency" ) );
         outputFields[i].setDecimalSymbol( rep.getStepAttributeString( id_step, i, "field_decimal" ) );
         outputFields[i].setGroupingSymbol( rep.getStepAttributeString( id_step, i, "field_group" ) );
-        outputFields[i].setTrimType( ValueMeta.getTrimTypeByCode( rep.getStepAttributeString(
-          id_step, i, "field_trim_type" ) ) );
+        outputFields[i].setTrimType( ValueMeta.getTrimTypeByCode( rep.getStepAttributeString( id_step, i,
+            "field_trim_type" ) ) );
         outputFields[i].setNullString( rep.getStepAttributeString( id_step, i, "field_nullif" ) );
         outputFields[i].setLength( (int) rep.getStepAttributeInteger( id_step, i, "field_length" ) );
         outputFields[i].setPrecision( (int) rep.getStepAttributeInteger( id_step, i, "field_precision" ) );
@@ -1079,8 +1077,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "separator", separator );
       rep.saveStepAttribute( id_transformation, id_step, "enclosure", enclosure );
@@ -1132,16 +1129,16 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
     }
   }
 
-  public void check( List<CheckResultInterface> remarks, TransMeta transMeta, StepMeta stepMeta,
-    RowMetaInterface prev, String[] input, String[] output, RowMetaInterface info, VariableSpace space,
-    Repository repository, IMetaStore metaStore ) {
+  public void check( List<CheckResultInterface> remarks, TransMeta transMeta, StepMeta stepMeta, RowMetaInterface prev,
+      String[] input, String[] output, RowMetaInterface info, VariableSpace space, Repository repository,
+      IMetaStore metaStore ) {
     CheckResult cr;
 
     // Check output fields
     if ( prev != null && prev.size() > 0 ) {
       cr =
-        new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString(
-          PKG, "TextFileOutputMeta.CheckResult.FieldsReceived", "" + prev.size() ), stepMeta );
+          new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString( PKG,
+              "TextFileOutputMeta.CheckResult.FieldsReceived", "" + prev.size() ), stepMeta );
       remarks.add( cr );
 
       String error_message = "";
@@ -1156,14 +1153,13 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
         }
       }
       if ( error_found ) {
-        error_message =
-          BaseMessages.getString( PKG, "TextFileOutputMeta.CheckResult.FieldsNotFound", error_message );
+        error_message = BaseMessages.getString( PKG, "TextFileOutputMeta.CheckResult.FieldsNotFound", error_message );
         cr = new CheckResult( CheckResultInterface.TYPE_RESULT_ERROR, error_message, stepMeta );
         remarks.add( cr );
       } else {
         cr =
-          new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString(
-            PKG, "TextFileOutputMeta.CheckResult.AllFieldsFound" ), stepMeta );
+            new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString( PKG,
+                "TextFileOutputMeta.CheckResult.AllFieldsFound" ), stepMeta );
         remarks.add( cr );
       }
     }
@@ -1171,24 +1167,24 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
     // See if we have input streams leading to this step!
     if ( input.length > 0 ) {
       cr =
-        new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString(
-          PKG, "TextFileOutputMeta.CheckResult.ExpectedInputOk" ), stepMeta );
+          new CheckResult( CheckResultInterface.TYPE_RESULT_OK, BaseMessages.getString( PKG,
+              "TextFileOutputMeta.CheckResult.ExpectedInputOk" ), stepMeta );
       remarks.add( cr );
     } else {
       cr =
-        new CheckResult( CheckResultInterface.TYPE_RESULT_ERROR, BaseMessages.getString(
-          PKG, "TextFileOutputMeta.CheckResult.ExpectedInputError" ), stepMeta );
+          new CheckResult( CheckResultInterface.TYPE_RESULT_ERROR, BaseMessages.getString( PKG,
+              "TextFileOutputMeta.CheckResult.ExpectedInputError" ), stepMeta );
       remarks.add( cr );
     }
 
     cr =
-      new CheckResult( CheckResultInterface.TYPE_RESULT_COMMENT, BaseMessages.getString(
-        PKG, "TextFileOutputMeta.CheckResult.FilesNotChecked" ), stepMeta );
+        new CheckResult( CheckResultInterface.TYPE_RESULT_COMMENT, BaseMessages.getString( PKG,
+            "TextFileOutputMeta.CheckResult.FilesNotChecked" ), stepMeta );
     remarks.add( cr );
   }
 
-  public StepInterface getStep( StepMeta stepMeta, StepDataInterface stepDataInterface, int cnr,
-    TransMeta transMeta, Trans trans ) {
+  public StepInterface getStep( StepMeta stepMeta, StepDataInterface stepDataInterface, int cnr, TransMeta transMeta,
+      Trans trans ) {
     return new TextFileOutput( stepMeta, stepDataInterface, cnr, transMeta, trans );
   }
 
@@ -1199,7 +1195,7 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
   /**
    * Since the exported transformation that runs this will reside in a ZIP file, we can't reference files relatively. So
    * what this does is turn the name of the base path into an absolute path.
-   *
+   * 
    * @param space
    *          the variable space to use
    * @param definitions
@@ -1208,12 +1204,11 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
    *          The repository to optionally load other resources from (to be converted to XML)
    * @param metaStore
    *          the metaStore in which non-kettle metadata could reside.
-   *
+   * 
    * @return the filename of the exported resource
    */
   public String exportResources( VariableSpace space, Map<String, ResourceDefinition> definitions,
-    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore )
-    throws KettleException {
+      ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore ) throws KettleException {
     try {
       // The object that we're modifying here is a copy of the original!
       // So let's change the filename from relative to absolute by grabbing the file object...
@@ -1235,5 +1230,14 @@ public class TextFileOutputMeta extends BaseStepMeta implements StepMetaInterfac
 
   public void setFilename( String fileName ) {
     this.fileName = fileName;
+  }
+
+  @Override
+  public StepMetaInjectionInterface getStepMetaInjectionInterface() {
+    return new TextFileOutputMetaInjection( this );
+  }
+
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException {
+    return getStepMetaInjectionInterface().extractStepMetadataEntries();
   }
 }

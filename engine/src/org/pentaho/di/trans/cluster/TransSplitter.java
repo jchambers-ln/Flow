@@ -41,9 +41,12 @@ import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.TransLogTable;
 import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.partition.PartitionSchema;
+import org.pentaho.di.repository.Repository;
 import org.pentaho.di.trans.SlaveStepCopyPartitionDistribution;
 import org.pentaho.di.trans.TransHopMeta;
 import org.pentaho.di.trans.TransMeta;
+import org.pentaho.di.trans.TransMetaFactory;
+import org.pentaho.di.trans.TransMetaFactoryImpl;
 import org.pentaho.di.trans.step.RemoteStep;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepPartitioningMeta;
@@ -101,21 +104,30 @@ public class TransSplitter {
    * @param originalTransformation
    */
   public TransSplitter( TransMeta transMeta ) throws KettleException {
-    this();
+    this( transMeta, new TransMetaFactoryImpl() );
+  }
 
+  protected TransSplitter( TransMeta transMeta, TransMetaFactory transMetaFactory ) throws KettleException {
+    this();
     // We want to make sure there is no trace of the old transformation left when we
     // Modify during split.
     // As such, we deflate/inflate over XML
     //
     String transXML = transMeta.getXML();
     this.originalTransformation =
-      new TransMeta( XMLHandler.getSubNode( XMLHandler.loadXMLString( transXML ), TransMeta.XML_TAG ), null );
+        transMetaFactory
+            .create( XMLHandler.getSubNode( XMLHandler.loadXMLString( transXML ), TransMeta.XML_TAG ), null );
     this.originalTransformation.shareVariablesWith( transMeta );
     this.originalTransformation.copyParametersFrom( transMeta );
 
     // Retain repository information
     this.originalTransformation.setRepository( transMeta.getRepository() );
     this.originalTransformation.setRepositoryDirectory( transMeta.getRepositoryDirectory() );
+
+    Repository rep = transMeta.getRepository();
+    if ( rep != null ) {
+      rep.readTransSharedObjects( this.originalTransformation );
+    }
 
     checkClusterConfiguration();
 
@@ -201,8 +213,7 @@ public class TransSplitter {
   }
 
   private String getWriterName( ClusterSchema clusterSchema, SlaveServer sourceSlaveServer, String sourceStepname,
-    int sourceStepCopy, SlaveServer targetSlaveServer, String targetStepName, int targetStepCopy )
-    throws Exception {
+    int sourceStepCopy, SlaveServer targetSlaveServer, String targetStepName, int targetStepCopy ) throws Exception {
     return "Writer : "
       + getPort(
         clusterSchema, sourceSlaveServer, sourceStepname, sourceStepCopy, targetSlaveServer, targetStepName,
@@ -210,8 +221,7 @@ public class TransSplitter {
   }
 
   private String getReaderName( ClusterSchema clusterSchema, SlaveServer sourceSlaveServer, String sourceStepname,
-    int sourceStepCopy, SlaveServer targetSlaveServer, String targetStepName, int targetStepCopy )
-    throws Exception {
+    int sourceStepCopy, SlaveServer targetSlaveServer, String targetStepName, int targetStepCopy ) throws Exception {
     return "Reader : "
       + getPort(
         clusterSchema, sourceSlaveServer, sourceStepname, sourceStepCopy, targetSlaveServer, targetStepName,
@@ -275,8 +285,7 @@ public class TransSplitter {
    *          the slave server to reference
    * @return
    */
-  private TransMeta getSlaveTransformation( ClusterSchema clusterSchema, SlaveServer slaveServer )
-    throws KettleException {
+  private TransMeta getSlaveTransformation( ClusterSchema clusterSchema, SlaveServer slaveServer ) throws KettleException {
     TransMeta slave = slaveTransMap.get( slaveServer );
     if ( slave == null ) {
       slave = getOriginalCopy( true, clusterSchema, slaveServer );
@@ -285,8 +294,7 @@ public class TransSplitter {
     return slave;
   }
 
-  private TransMeta getOriginalCopy( boolean isSlaveTrans, ClusterSchema clusterSchema, SlaveServer slaveServer )
-    throws KettleException {
+  private TransMeta getOriginalCopy( boolean isSlaveTrans, ClusterSchema clusterSchema, SlaveServer slaveServer ) throws KettleException {
     TransMeta transMeta = new TransMeta();
     transMeta.setSlaveTransformation( true );
 

@@ -1,4 +1,4 @@
-//CHECKSTYLE:FileLength:OFF
+// CHECKSTYLE:FileLength:OFF
 /*! ******************************************************************************
  *
  * Pentaho Data Integration
@@ -114,11 +114,11 @@ public class TableView extends Composite {
   private ColumnInfo[] columns;
   private int rows;
   private boolean readonly;
-  private int button_rownr;
-  private int button_colnr;
-  private String button_content;
+  private int buttonRownr;
+  private int buttonColnr;
+  private String buttonContent;
 
-  private boolean previous_shift;
+  private boolean previousShift;
   private int selectionStart;
 
   public Table table;
@@ -142,12 +142,12 @@ public class TableView extends Composite {
   private TraverseListener lsTraverse;
 
   private int sortfield;
-  private int sortfield_last;
+  private int sortfieldLast;
   private boolean sortingDescending;
-  private Boolean sortingDescending_last;
+  private Boolean sortingDescendingLast;
   private boolean sortable;
   private int lastRowCount;
-  private boolean field_changed;
+  private boolean fieldChanged;
 
   private Menu mRow;
 
@@ -156,15 +156,15 @@ public class TableView extends Composite {
 
   // The following Image and Graphics Context are used for font metrics. We only
   // want them created once.
-  private static Image dummy_image;
-  private static GC dummy_gc;
+  private static Image dummyImage;
+  private static GC dummyGC;
   private Font gridFont;
 
   // private int last_carret_position;
 
   private ArrayList<TransAction> undo;
-  private int undo_position;
-  private String[] before_edit;
+  private int undoPosition;
+  private String[] beforeEdit;
   private MenuItem miEditUndo, miEditRedo;
 
   private static final String CLIPBOARD_DELIMITER = "\t";
@@ -197,14 +197,14 @@ public class TableView extends Composite {
     this.variables = space;
 
     sortfield = 0;
-    sortfield_last = -1;
+    sortfieldLast = -1;
     sortingDescending = false;
-    sortingDescending_last = null;
+    sortingDescendingLast = null;
 
     sortable = true;
 
     selectionStart = -1;
-    previous_shift = false;
+    previousShift = false;
 
     usedColors = new Hashtable<String, Color>();
 
@@ -221,16 +221,16 @@ public class TableView extends Composite {
 
     lsUndo = new ModifyListener() {
       public void modifyText( ModifyEvent arg0 ) {
-        field_changed = true;
+        fieldChanged = true;
       }
     };
-    if ( TableView.dummy_gc == null ) {
+    if ( TableView.dummyGC == null ) {
       Display disp = parent.getDisplay();
-      TableView.dummy_image = new Image( disp, 1, 1 );
-      TableView.dummy_gc = new GC( TableView.dummy_image );
+      TableView.dummyImage = new Image( disp, 1, 1 );
+      TableView.dummyGC = new GC( TableView.dummyImage );
 
       gridFont = new Font( disp, props.getGridFont() );
-      TableView.dummy_gc.setFont( gridFont );
+      TableView.dummyGC.setFont( gridFont );
 
     }
 
@@ -508,8 +508,8 @@ public class TableView extends Composite {
         }
         text.dispose();
 
-        String[] after_edit = getItemText( row );
-        checkChanged( new String[][] { before_edit }, new String[][] { after_edit }, new int[] { rownr } );
+        String[] afterEdit = getItemText( row );
+        checkChanged( new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { rownr } );
       }
     };
     lsFocusCombo = new FocusAdapter() {
@@ -528,9 +528,9 @@ public class TableView extends Composite {
             // Eat widget disposed error
           }
 
-          String[] after_edit = getItemText( row );
-          if ( after_edit != null ) {
-            checkChanged( new String[][] { before_edit }, new String[][] { after_edit }, new int[] { rownr } );
+          String[] afterEdit = getItemText( row );
+          if ( afterEdit != null ) {
+            checkChanged( new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { rownr } );
           }
         }
         combo.dispose();
@@ -546,8 +546,8 @@ public class TableView extends Composite {
         int rownr = table.indexOf( row );
         row.setText( colnr, combo.getText() );
 
-        String[] after_edit = getItemText( row );
-        checkChanged( new String[][] { before_edit }, new String[][] { after_edit }, new int[] { rownr } );
+        String[] afterEdit = getItemText( row );
+        checkChanged( new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { rownr } );
       }
     };
 
@@ -639,13 +639,23 @@ public class TableView extends Composite {
     // Catch the keys pressed when editing a Combo field
     lsKeyCombo = new KeyAdapter() {
       public void keyPressed( KeyEvent e ) {
+        boolean ctrl = ( ( e.stateMask & SWT.MOD1 ) != 0 );
+        // CTRL-V --> Paste selected infomation...
+        if ( e.keyCode == 'v' && ctrl ) {
+          e.doit = false;
+          if ( clipboard != null ) {
+            clipboard.dispose();
+            clipboard = null;
+          }
+          clipboard = new Clipboard( getDisplay() );
+          TextTransfer tran = TextTransfer.getInstance();
+          String text = (String) clipboard.getContents( tran );
+          combo.setText( text );
+          return;
+        }
+
         boolean right = false;
         boolean left = false;
-
-        // left = e.keyCode == SWT.ARROW_LEFT && last_carret_position==0;
-        // right = e.keyCode == SWT.ARROW_RIGHT &&
-        // last_carret_position==combo.getText().length();
-        // System.out.println("keycode: "+e.keyCode+" character:"+e.character);
         // "ENTER": close the text editor and copy the data over
         if ( e.keyCode == SWT.CR || e.keyCode == SWT.TAB || left || right ) {
           if ( activeTableItem == null ) {
@@ -654,9 +664,9 @@ public class TableView extends Composite {
 
           applyComboChange( activeTableItem, activeTableRow, activeTableColumn );
 
-          String[] after_edit = getItemText( activeTableItem );
+          String[] afterEdit = getItemText( activeTableItem );
           checkChanged(
-            new String[][] { before_edit }, new String[][] { after_edit }, new int[] { activeTableRow } );
+            new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { activeTableRow } );
 
           int maxcols = table.getColumnCount();
           int maxrows = table.getItemCount();
@@ -696,7 +706,7 @@ public class TableView extends Composite {
           table.setFocus();
         } else if ( e.keyCode == SWT.ESC ) {
           if ( activeTableItem != null ) {
-            activeTableItem.setText( activeTableColumn, before_edit[activeTableColumn - 1] );
+            activeTableItem.setText( activeTableColumn, beforeEdit[activeTableColumn - 1] );
           }
           combo.dispose();
           table.setFocus();
@@ -723,16 +733,13 @@ public class TableView extends Composite {
         int maxrows = table.getItemCount();
 
         boolean shift = ( e.stateMask & SWT.SHIFT ) != 0;
-        if ( !previous_shift && shift || selectionStart < 0 ) {
+        if ( !previousShift && shift || selectionStart < 0 ) {
           // Shift is pressed down: reset start of selection
           // No start of selection known? reset as well.
           selectionStart = activeTableRow;
         }
-        previous_shift = shift;
+        previousShift = shift;
         boolean ctrl = ( ( e.stateMask & SWT.MOD1 ) != 0 );
-
-        // System.out.println("ctrl: "+ctrl+" shift: "
-        // +shift+" keycode: "+e.keyCode+" character:"+e.character);
 
         // Move rows up or down shortcuts...
         if ( !readonly && e.keyCode == SWT.ARROW_DOWN && ctrl ) {
@@ -924,7 +931,7 @@ public class TableView extends Composite {
         }
 
         if ( activeTableColumn > 0 ) {
-          boolean text_char =
+          boolean textChar =
             ( e.character >= 'a' && e.character <= 'z' )
               || ( e.character >= 'A' && e.character <= 'Z' ) || ( e.character >= '0' && e.character <= '9' )
               || ( e.character == ' ' ) || ( e.character == '_' ) || ( e.character == ',' )
@@ -933,16 +940,16 @@ public class TableView extends Composite {
 
           // setSelection(row, rownr, colnr);
           // character a-z, A-Z, 0-9: start typing...
-          if ( e.character == SWT.CR || e.keyCode == SWT.F2 || text_char ) {
-            boolean select_text = true;
-            char extra_char = 0;
+          if ( e.character == SWT.CR || e.keyCode == SWT.F2 || textChar ) {
+            boolean selectText = true;
+            char extraChar = 0;
 
-            if ( text_char ) {
-              extra_char = e.character;
-              select_text = false;
+            if ( textChar ) {
+              extraChar = e.character;
+              selectText = false;
             }
             e.doit = false;
-            edit( activeTableRow, activeTableColumn, select_text, extra_char );
+            edit( activeTableRow, activeTableColumn, selectText, extraChar );
           }
           if ( e.character == SWT.TAB ) {
             // TAB
@@ -985,7 +992,9 @@ public class TableView extends Composite {
     // Table listens to the mouse:
     MouseAdapter lsMouseT = new MouseAdapter() {
       public void mouseDown( MouseEvent event ) {
-        if ( event.button == 1 ) {
+        //if ( event.button == 1 ) {
+        boolean rightClick = event.button == 3;
+        if ( event.button == 1 || rightClick ) {
           boolean shift = ( event.stateMask & SWT.SHIFT ) != 0;
           boolean control = ( event.stateMask & SWT.MOD1 ) != 0;
           if ( !shift && !control ) {
@@ -1002,7 +1011,9 @@ public class TableView extends Composite {
                   activeTableColumn = i;
                   activeTableRow = index;
 
-                  editSelected();
+                  if ( !rightClick ) {
+                    editSelected();
+                  }
                   return;
                 } else {
                   if ( i == table.getColumnCount() - 1 && // last column
@@ -1025,6 +1036,9 @@ public class TableView extends Composite {
                 return;
               }
               index++;
+            }
+            if ( rightClick ) {
+              return;
             }
             // OK, so they clicked in the table and we did not go into the
             // invisible: below the last line!
@@ -1142,25 +1156,25 @@ public class TableView extends Composite {
 
   public void sortTable( int sortField, boolean sortingDescending ) {
     boolean shouldRefresh = false;
-    if ( this.sortfield_last == -1 && this.sortingDescending_last == null ) {
+    if ( this.sortfieldLast == -1 && this.sortingDescendingLast == null ) {
       // first time through, so update
       shouldRefresh = true;
-      this.sortfield_last = this.sortfield;
-      this.sortingDescending_last = new Boolean( this.sortingDescending );
+      this.sortfieldLast = this.sortfield;
+      this.sortingDescendingLast = new Boolean( this.sortingDescending );
 
       this.sortfield = sortField;
       this.sortingDescending = sortingDescending;
     }
 
-    if ( sortfield_last != this.sortfield ) {
-      this.sortfield_last = this.sortfield;
+    if ( sortfieldLast != this.sortfield ) {
+      this.sortfieldLast = this.sortfield;
       this.sortfield = sortField;
       shouldRefresh = true;
 
     }
 
-    if ( sortingDescending_last != this.sortingDescending ) {
-      this.sortingDescending_last = this.sortingDescending;
+    if ( sortingDescendingLast != this.sortingDescending ) {
+      this.sortingDescendingLast = this.sortingDescending;
       this.sortingDescending = sortingDescending;
       shouldRefresh = true;
     }
@@ -1327,8 +1341,8 @@ public class TableView extends Composite {
     text.dispose();
     table.setFocus();
 
-    String[] after_edit = getItemText( row );
-    checkChanged( new String[][] { before_edit }, new String[][] { after_edit }, new int[] { rownr } );
+    String[] afterEdit = getItemText( row );
+    checkChanged( new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { rownr } );
 
     selectionStart = -1;
 
@@ -1360,8 +1374,8 @@ public class TableView extends Composite {
     row.setText( colnr, textData );
     combo.dispose();
 
-    String[] after_edit = getItemText( row );
-    checkChanged( new String[][] { before_edit }, new String[][] { after_edit }, new int[] { rownr } );
+    String[] afterEdit = getItemText( row );
+    checkChanged( new String[][] { beforeEdit }, new String[][] { afterEdit }, new int[] { rownr } );
 
     selectionStart = -1;
 
@@ -1398,8 +1412,8 @@ public class TableView extends Composite {
   }
 
   private void checkChanged( String[][] before, String[][] after, int[] index ) {
-    if ( field_changed ) // Did we change anything: if so, add undo information
-    {
+    // Did we change anything: if so, add undo information
+    if ( fieldChanged ) {
       TransAction ta = new TransAction();
       ta.setChanged( before, after, index );
       addUndo( ta );
@@ -1698,14 +1712,14 @@ public class TableView extends Composite {
     String text = (String) clipboard.getContents( tran );
 
     if ( text != null ) {
-      String[] lines = convertTextToLines( text );
+      String[] lines = text.split( Const.CR );
       if ( lines.length > 1 ) {
         // ALlocate complete paste grid!
         String[][] grid = new String[lines.length - 1][];
         int[] idx = new int[lines.length - 1];
 
         for ( int i = 1; i < lines.length; i++ ) {
-          grid[i - 1] = convertLineToStrings( lines[i] );
+          grid[i - 1] = lines[i].split( "\t" );
           idx[i - 1] = rownr + i;
           addItem( idx[i - 1], grid[i - 1] );
         }
@@ -1735,59 +1749,6 @@ public class TableView extends Composite {
       item.setText( i + 1, str[i] );
     }
     setModified();
-  }
-
-  private String[] convertTextToLines( String text ) {
-    ArrayList<String> strings = new ArrayList<String>();
-
-    int pos = 0;
-    int start = 0;
-    while ( pos < text.length() ) {
-      // Search for the end of the line: Const.CR
-      while ( pos < text.length() && !text.substring( pos ).startsWith( Const.CR ) ) {
-        pos++;
-      }
-      if ( pos < text.length() ) {
-        String line = text.substring( start, pos );
-        strings.add( line );
-
-        pos += Const.CR.length();
-        start = pos;
-      }
-    }
-
-    String[] retval = new String[strings.size()];
-    for ( int i = 0; i < retval.length; i++ ) {
-      retval[i] = strings.get( i );
-    }
-
-    return retval;
-  }
-
-  private String[] convertLineToStrings( String line ) {
-    ArrayList<String> fields = new ArrayList<String>();
-
-    int pos2 = 0;
-    int start2 = 0;
-    while ( pos2 < line.length() ) {
-      // Search for the end of the field: "\t"
-      while ( pos2 < line.length() && !line.substring( pos2 ).startsWith( "\t" ) ) {
-        pos2++;
-      }
-      String field = line.substring( start2, pos2 );
-
-      fields.add( field );
-
-      pos2++;
-      start2 = pos2;
-    }
-
-    String[] retval = new String[fields.size()];
-    for ( int i = 0; i < retval.length; i++ ) {
-      retval[i] = fields.get( i );
-    }
-
-    return retval;
   }
 
   private void cutSelected() {
@@ -1927,7 +1888,7 @@ public class TableView extends Composite {
     edit( rownr, colnr, true, (char) 0 );
   }
 
-  private void edit( int rownr, int colnr, boolean select_text, char extra ) {
+  private void edit( int rownr, int colnr, boolean selectText, char extra ) {
     selectionStart = -1;
 
     TableItem row = table.getItem( rownr );
@@ -1948,7 +1909,7 @@ public class TableView extends Composite {
 
     switch ( columns[colnr - 1].getType() ) {
       case ColumnInfo.COLUMN_TYPE_TEXT:
-        editText( row, rownr, colnr, select_text, extra );
+        editText( row, rownr, colnr, selectText, extra );
         break;
       case ColumnInfo.COLUMN_TYPE_CCOMBO:
       case ColumnInfo.COLUMN_TYPE_FORMAT:
@@ -1975,9 +1936,9 @@ public class TableView extends Composite {
     return retval;
   }
 
-  private void editText( TableItem row, final int rownr, final int colnr, boolean select_text, char extra ) {
-    before_edit = getItemText( row );
-    field_changed = false;
+  private void editText( TableItem row, final int rownr, final int colnr, boolean selectText, char extra ) {
+    beforeEdit = getItemText( row );
+    fieldChanged = false;
 
     ColumnInfo colinfo = columns[colnr - 1];
 
@@ -2054,7 +2015,7 @@ public class TableView extends Composite {
       textWidget.addKeyListener( lsKeyText );
       // Make the column larger so we can still see the string we're entering...
       textWidget.addModifyListener( modifyListener );
-      if ( select_text ) {
+      if ( selectText ) {
         textWidget.selectAll();
       }
       if ( tooltip != null ) {
@@ -2086,7 +2047,7 @@ public class TableView extends Composite {
       textWidget.addKeyListener( lsKeyText );
       // Make the column larger so we can still see the string we're entering...
       textWidget.addModifyListener( modifyListener );
-      if ( select_text ) {
+      if ( selectText ) {
         textWidget.selectAll();
       }
       if ( tooltip != null ) {
@@ -2119,7 +2080,7 @@ public class TableView extends Composite {
 
   private void setColumnWidthBasedOnTextField( final int colnr, final boolean useVariables ) {
     String str = getTextWidgetValue( colnr );
-    int strmax = TableView.dummy_gc.textExtent( str, SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x + 20;
+    int strmax = TableView.dummyGC.textExtent( str, SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x + 20;
     int colmax = tablecolumn[colnr].getWidth();
     if ( strmax > colmax ) {
       if ( Const.isOSX() || Const.isLinux() ) {
@@ -2171,8 +2132,8 @@ public class TableView extends Composite {
   }
 
   private void editCombo( TableItem row, int rownr, int colnr ) {
-    before_edit = getItemText( row );
-    field_changed = false;
+    beforeEdit = getItemText( row );
+    fieldChanged = false;
     ColumnInfo colinfo = columns[colnr - 1];
 
     if ( colinfo.isReadOnly() && colinfo.getSelectionAdapter() != null ) {
@@ -2197,21 +2158,14 @@ public class TableView extends Composite {
     if ( colinfo.getComboValuesSelectionListener() != null ) {
       opt = colinfo.getComboValuesSelectionListener().getComboValues( row, rownr, colnr );
     }
-
-    for ( int i = 0; i < opt.length; i++ ) {
-      combo.add( opt[i] );
-    }
+    combo.setItems( opt );
+    combo.setVisibleItemCount( opt.length - 1 );
     combo.setText( row.getText( colnr ) );
     if ( lsMod != null ) {
       combo.addModifyListener( lsMod );
     }
     combo.addModifyListener( lsUndo );
-    String tooltip = colinfo.getToolTip();
-    if ( tooltip != null ) {
-      combo.setToolTipText( tooltip );
-    } else {
-      combo.setToolTipText( "" );
-    }
+    combo.setToolTipText( colinfo.getToolTip() == null ? "" : colinfo.getToolTip() );
     combo.setVisible( true );
     combo.addKeyListener( lsKeyCombo );
 
@@ -2230,8 +2184,8 @@ public class TableView extends Composite {
   }
 
   private void editButton( TableItem row, int rownr, int colnr ) {
-    before_edit = getItemText( row );
-    field_changed = false;
+    beforeEdit = getItemText( row );
+    fieldChanged = false;
 
     ColumnInfo colinfo = columns[colnr - 1];
 
@@ -2259,11 +2213,11 @@ public class TableView extends Composite {
       button.addSelectionListener( selAdpt );
     }
 
-    button_rownr = rownr;
-    button_colnr = colnr;
+    buttonRownr = rownr;
+    buttonColnr = colnr;
 
     // button.addTraverseListener(lsTraverse);
-    button_content = row.getText( colnr );
+    buttonContent = row.getText( colnr );
 
     String tooltip = columns[colnr - 1].getToolTip();
     if ( tooltip != null ) {
@@ -2323,7 +2277,7 @@ public class TableView extends Composite {
       TableColumn tc = table.getColumn( c );
       int max = 0;
       if ( header ) {
-        max = TableView.dummy_gc.textExtent( tc.getText(), SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x;
+        max = TableView.dummyGC.textExtent( tc.getText(), SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x;
 
         // Check if the column has a sorted mark set. In that case, we need the
         // header to be a bit wider...
@@ -2373,7 +2327,7 @@ public class TableView extends Composite {
       }
 
       for ( String str : columnStrings ) {
-        int len = TableView.dummy_gc.textExtent( str == null ? "" : str, SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x;
+        int len = TableView.dummyGC.textExtent( str == null ? "" : str, SWT.DRAW_TAB | SWT.DRAW_DELIMITER ).x;
         if ( len > max ) {
           max = len;
         }
@@ -2495,17 +2449,17 @@ public class TableView extends Composite {
   }
 
   private void addUndo( TransAction ta ) {
-    while ( undo.size() > undo_position + 1 && undo.size() > 0 ) {
+    while ( undo.size() > undoPosition + 1 && undo.size() > 0 ) {
       int last = undo.size() - 1;
       undo.remove( last );
     }
 
     undo.add( ta );
-    undo_position++;
+    undoPosition++;
 
     while ( undo.size() > props.getMaxUndo() ) {
       undo.remove( 0 );
-      undo_position--;
+      undoPosition--;
     }
 
     setUndoMenu();
@@ -2717,63 +2671,63 @@ public class TableView extends Composite {
 
   // get previous undo, change position
   private TransAction previousUndo() {
-    if ( undo.isEmpty() || undo_position < 0 ) {
+    if ( undo.isEmpty() || undoPosition < 0 ) {
       return null; // No undo left!
     }
 
-    TransAction retval = undo.get( undo_position );
+    TransAction retval = undo.get( undoPosition );
 
-    undo_position--;
+    undoPosition--;
 
     return retval;
   }
 
   // View previous undo, don't change position
   private TransAction viewPreviousUndo() {
-    if ( undo.isEmpty() || undo_position < 0 ) {
+    if ( undo.isEmpty() || undoPosition < 0 ) {
       return null; // No undo left!
     }
 
-    TransAction retval = undo.get( undo_position );
+    TransAction retval = undo.get( undoPosition );
 
     return retval;
   }
 
   private TransAction nextUndo() {
     int size = undo.size();
-    if ( size == 0 || undo_position >= size - 1 ) {
+    if ( size == 0 || undoPosition >= size - 1 ) {
       return null; // no redo left...
     }
 
-    undo_position++;
+    undoPosition++;
 
-    TransAction retval = undo.get( undo_position );
+    TransAction retval = undo.get( undoPosition );
 
     return retval;
   }
 
   private TransAction viewNextUndo() {
     int size = undo.size();
-    if ( size == 0 || undo_position >= size - 1 ) {
+    if ( size == 0 || undoPosition >= size - 1 ) {
       return null; // no redo left...
     }
 
-    TransAction retval = undo.get( undo_position + 1 );
+    TransAction retval = undo.get( undoPosition + 1 );
 
     return retval;
   }
 
   private void clearUndo() {
     undo = new ArrayList<TransAction>();
-    undo_position = -1;
+    undoPosition = -1;
   }
 
   private Point getButtonPosition() {
-    return new Point( button_colnr, button_rownr );
+    return new Point( buttonColnr, buttonRownr );
   }
 
   public String getButtonString() {
-    return button_content;
+    return buttonContent;
   }
 
   public void setButtonString( String str ) {

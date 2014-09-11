@@ -102,8 +102,7 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
     this.setEmptyStringAll = setEmptyStringAll;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -211,7 +210,7 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
   }
 
   /**
-   * @param fieldName
+   * @param replaceValue
    *          The replaceValue to set.
    */
   public void setReplaceValue( String[] replaceValue ) {
@@ -295,14 +294,14 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
     return replaceAllMask;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       selectFields = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "selectFields" ) );
       selectValuesType = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "selectValuesType" ) );
       replaceAllByValue = XMLHandler.getTagValue( stepnode, "replaceAllByValue" );
       replaceAllMask = XMLHandler.getTagValue( stepnode, "replaceAllMask" );
-      setEmptyStringAll = !"N".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "setEmptyStringAll" ) );
+      String setEmptyStringAllString = XMLHandler.getTagValue( stepnode, "setEmptyStringAll" );
+      setEmptyStringAll = !Const.isEmpty( setEmptyStringAllString ) && "Y".equalsIgnoreCase( setEmptyStringAllString );
 
       Node types = XMLHandler.getSubNode( stepnode, "valuetypes" );
       int nrtypes = XMLHandler.countNodes( types, "valuetype" );
@@ -317,7 +316,7 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
         typereplaceValue[i] = XMLHandler.getTagValue( tnode, "value" );
         typereplaceMask[i] = XMLHandler.getTagValue( tnode, "mask" );
         String typeemptyString = XMLHandler.getTagValue( tnode, "set_type_empty_string" );
-        setTypeEmptyString[i] = Const.isEmpty( typeemptyString ) || "Y".equalsIgnoreCase( typeemptyString );
+        setTypeEmptyString[ i ] = !Const.isEmpty( typeemptyString ) && "Y".equalsIgnoreCase( typeemptyString );
       }
       for ( int i = 0; i < nrfields; i++ ) {
         Node fnode = XMLHandler.getSubNodeByNr( fields, "field", i );
@@ -390,8 +389,7 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       replaceAllByValue = rep.getStepAttributeString( id_step, "replaceAllByValue" );
       replaceAllMask = rep.getStepAttributeString( id_step, "replaceAllMask" );
@@ -421,8 +419,7 @@ public class IfNullMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "replaceAllByValue", replaceAllByValue );
       rep.saveStepAttribute( id_transformation, id_step, "replaceAllMask", replaceAllMask );

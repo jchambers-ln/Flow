@@ -22,15 +22,22 @@
 
 package org.pentaho.di.imp;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Calendar;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.KettleEnvironment;
+import org.pentaho.di.core.Props;
 import org.pentaho.di.core.exception.KettleException;
+import org.pentaho.di.core.gui.HasOverwritePrompter;
+import org.pentaho.di.core.gui.OverwritePrompter;
 import org.pentaho.di.core.logging.LogChannel;
 import org.pentaho.di.core.logging.LogChannelInterface;
 import org.pentaho.di.core.plugins.PluginRegistry;
@@ -41,11 +48,12 @@ import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.imp.rule.ImportRuleInterface;
 import org.pentaho.di.job.JobMeta;
 import org.pentaho.di.pan.CommandLineOption;
+import org.pentaho.di.repository.CanLimitDirs;
+import org.pentaho.di.repository.IRepositoryImporter;
 import org.pentaho.di.repository.RepositoriesMeta;
 import org.pentaho.di.repository.Repository;
 import org.pentaho.di.repository.RepositoryDirectoryInterface;
 import org.pentaho.di.repository.RepositoryImportFeedbackInterface;
-import org.pentaho.di.repository.RepositoryImporter;
 import org.pentaho.di.repository.RepositoryMeta;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.version.BuildVersion;
@@ -53,19 +61,106 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 
 public class Import {
-  private static Class<?> PKG = Import.class; // i18n
+  private static final Class<?> PKG = Import.class; // i18n
 
   public static final String STRING_IMPORT = "Import";
 
-  public static void main( String[] a ) throws KettleException {
-    KettleEnvironment.init();
+  private static class ImportFeedback implements RepositoryImportFeedbackInterface, HasOverwritePrompter {
+    private final LogChannelInterface log;
+    private final boolean continueOnError;
+    private final boolean replace;
+    private final BufferedReader reader;
 
-    List<String> args = new ArrayList<String>();
-    for ( int i = 0; i < a.length; i++ ) {
-      if ( a[i].length() > 0 ) {
-        args.add( a[i] );
-      }
+    public ImportFeedback( LogChannelInterface log, boolean continueOnError, boolean replace, BufferedReader reader ) {
+      this.log = log;
+      this.continueOnError = continueOnError;
+      this.replace = replace;
+      this.reader = reader;
     }
+
+    @Override
+    public void updateDisplay() {
+    }
+
+    @Override
+    public boolean transOverwritePrompt( TransMeta transMeta ) {
+      return replace;
+    }
+
+    @Override
+    public void showError( String title, String message, Exception e ) {
+      log.logError( title + " : " + message, e );
+    }
+
+    @Override
+    public void setLabel( String labelText ) {
+      log.logBasic( labelText );
+    }
+
+    @Override
+    public boolean jobOverwritePrompt( JobMeta jobMeta ) {
+      return replace;
+    }
+
+    @Override
+    public boolean askContinueOnErrorQuestion( String title, String message ) {
+      return continueOnError;
+    }
+
+    @Override
+    public void addLog( String line ) {
+      log.logBasic( line );
+    }
+
+    @Override
+    public boolean isAskingOverwriteConfirmation() {
+      return false;
+    }
+
+    @Override
+    public OverwritePrompter getOverwritePrompter() {
+      return new OverwritePrompter() {
+        private final String yes = BaseMessages.getString( PKG, "Import.Yes" );
+        private final String no = BaseMessages.getString( PKG, "Import.No" );
+        private final String none = BaseMessages.getString( PKG, "Import.None" );
+        private final String all = BaseMessages.getString( PKG, "Import.All" );
+        private final String prompt = "[" + yes + "," + no + "," + none + "," + all + "]";
+
+        @Override
+        public boolean overwritePrompt( String message, String rememberText, String rememberPropertyName ) {
+          log.logBasic( message );
+          String line;
+          Boolean result = null;
+          boolean remember = false;
+          while ( result == null ) {
+            log.logBasic( prompt );
+            try {
+              line = reader.readLine().trim();
+            } catch ( IOException e ) {
+              throw new RuntimeException( BaseMessages.getString( PKG, "Import.CouldntReadline" ) );
+            }
+            if ( line.equalsIgnoreCase( yes ) || line.equalsIgnoreCase( all ) ) {
+              result = true;
+            } else if ( line.equalsIgnoreCase( no ) || line.equalsIgnoreCase( none ) ) {
+              result = false;
+            }
+            if ( line.equalsIgnoreCase( all ) || line.equalsIgnoreCase( none ) ) {
+              remember = true;
+            }
+          }
+          Props.getInstance().setProperty( rememberPropertyName, ( !remember ) ? "Y" : "N" );
+          return result;
+        }
+      };
+    }
+  }
+
+  public static void main( String[] a ) throws KettleException {
+    BufferedReader reader = new BufferedReader( new InputStreamReader( System.in ) );
+    KettleEnvironment.init();
+    Props.init( Props.TYPE_PROPERTIES_SPOON );
+
+    List<String> args = pickupCmdArguments( a );
 
     StringBuffer optionRepname, optionUsername, optionPassword, optionDirname;
     StringBuffer optionLimitDir, optionFilename, optionRules, optionComment;
@@ -75,54 +170,31 @@ public class Import {
       new CommandLineOption[] {
         // Basic options
         //
-        new CommandLineOption( "rep", BaseMessages.getString( PKG, "Import.CmdLine.RepName" ), optionRepname =
-          new StringBuffer() ),
-        new CommandLineOption(
-          "user", BaseMessages.getString( PKG, "Import.CmdLine.RepUsername" ), optionUsername =
-            new StringBuffer() ),
-        new CommandLineOption(
-          "pass", BaseMessages.getString( PKG, "Import.CmdLine.RepPassword" ), optionPassword =
-            new StringBuffer() ),
-        new CommandLineOption( "dir", BaseMessages.getString( PKG, "Import.CmdLine.RepDir" ), optionDirname =
-          new StringBuffer() ),
-        new CommandLineOption(
-          "limitdir", BaseMessages.getString( PKG, "Import.CmdLine.LimitDir" ), optionLimitDir =
-            new StringBuffer() ),
-        new CommandLineOption( "file", BaseMessages.getString( PKG, "Import.CmdLine.File" ), optionFilename =
-          new StringBuffer() ),
-        new CommandLineOption(
-          "filedir", BaseMessages.getString( PKG, "Import.CmdLine.FileDir" ), optionFileDir =
-            new StringBuffer() ),
-        new CommandLineOption(
-          "rules", BaseMessages.getString( PKG, "Import.CmdLine.RulesFile" ), optionRules =
-            new StringBuffer() ),
-        new CommandLineOption(
-          "norules", BaseMessages.getString( PKG, "Import.CmdLine.NoRules" ), optionNoRules =
-            new StringBuffer(), true, false ),
-        new CommandLineOption(
-          "comment", BaseMessages.getString( PKG, "Import.CmdLine.Comment" ), optionComment =
-            new StringBuffer(), true, false ),
-        new CommandLineOption(
-          "replace", BaseMessages.getString( PKG, "Import.CmdLine.Replace" ), optionReplace =
-            new StringBuffer(), true, false ),
-        new CommandLineOption(
-          "coe", BaseMessages.getString( PKG, "Import.CmdLine.ContinueOnError" ), optionContinueOnError =
-            new StringBuffer(), true, false ),
-        new CommandLineOption(
-          "version", BaseMessages.getString( PKG, "Import.CmdLine.Version" ), optionVersion =
-            new StringBuffer(), true, false ),
+        createOption( "rep", "Import.CmdLine.RepName", optionRepname = new StringBuffer() ),
+        createOption( "user", "Import.CmdLine.RepUsername", optionUsername = new StringBuffer() ),
+        createOption( "pass", "Import.CmdLine.RepPassword", optionPassword = new StringBuffer() ),
+        createOption( "dir", "Import.CmdLine.RepDir", optionDirname = new StringBuffer() ),
+        createOption( "limitdir", "Import.CmdLine.LimitDir", optionLimitDir = new StringBuffer() ),
+        createOption( "file", "Import.CmdLine.File", optionFilename = new StringBuffer() ),
+        createOption( "filedir", "Import.CmdLine.FileDir", optionFileDir = new StringBuffer() ),
+        createOption( "rules", "Import.CmdLine.RulesFile", optionRules = new StringBuffer() ),
+        createOption( "norules", "Import.CmdLine.NoRules", optionNoRules = new StringBuffer(), true, false ),
+        createOption( "comment", "Import.CmdLine.Comment", optionComment = new StringBuffer(), true, false ),
+        createOption( "replace", "Import.CmdLine.Replace", optionReplace = new StringBuffer(), true, false ),
+        createOption( "coe", "Import.CmdLine.ContinueOnError", optionContinueOnError = new StringBuffer(), true, false ),
+        createOption( "version", "Import.CmdLine.Version", optionVersion = new StringBuffer(), true, false ),
 
         new CommandLineOption(
           "", BaseMessages.getString( PKG, "Import.CmdLine.ExtraFiles" ), new StringBuffer(), false, true,
-          true ), };
+          true ),
+      };
 
-    if ( args.size() == 0 ) {
+    if ( args.isEmpty() ) {
       CommandLineOption.printUsage( options );
       exitJVM( 9 );
     }
 
     final LogChannelInterface log = new LogChannel( STRING_IMPORT );
-
     CommandLineOption.parseArguments( args, options, log );
 
     // The arguments that are still left in args are in fact filenames that need to be imported.
@@ -133,6 +205,7 @@ public class Import {
     if ( !Const.isEmpty( optionFilename ) ) {
       filenames.add( optionFilename.toString() );
     }
+
 
     String kettleRepname = Const.getEnvironmentVariable( "KETTLE_REPOSITORY", null );
     String kettleUsername = Const.getEnvironmentVariable( "KETTLE_USER", null );
@@ -148,6 +221,7 @@ public class Import {
       optionPassword = new StringBuffer( kettlePassword );
     }
 
+
     if ( !Const.isEmpty( optionVersion ) ) {
       BuildVersion buildVersion = BuildVersion.getInstance();
       log.logBasic( BaseMessages.getString(
@@ -157,6 +231,7 @@ public class Import {
         exitJVM( 6 );
       }
     }
+
 
     // Verify repository options...
     //
@@ -181,6 +256,7 @@ public class Import {
       exitJVM( 1 );
     }
 
+
     // Load the rules file!
     //
     ImportRules importRules = new ImportRules();
@@ -191,8 +267,8 @@ public class Import {
         Document document = XMLHandler.loadXMLFile( rulesFile );
         Node rulesNode = XMLHandler.getSubNode( document, ImportRules.XML_TAG );
         importRules.loadXML( rulesNode );
-        log.logMinimal( BaseMessages.getString( PKG, "Import.Log.RulesLoaded", rulesFile, ""
-          + importRules.getRules().size() ) );
+        log.logMinimal( BaseMessages.getString( PKG, "Import.Log.RulesLoaded", rulesFile, Integer.toString(
+          importRules.getRules().size() ) ) );
         for ( ImportRuleInterface rule : importRules.getRules() ) {
           log.logBasic( " - " + rule.toString() );
         }
@@ -204,12 +280,12 @@ public class Import {
 
     // Get the list of limiting source directories
     //
-    List<String> limitDirs = new ArrayList<String>();
+    List<String> limitDirs;
     if ( !Const.isEmpty( optionLimitDir ) ) {
       String[] directories = optionLimitDir.toString().split( "," );
-      for ( String directory : directories ) {
-        limitDirs.add( directory );
-      }
+      limitDirs = Arrays.asList( directories );
+    } else {
+      limitDirs = Collections.emptyList();
     }
 
     // Find the repository metadata...
@@ -267,10 +343,8 @@ public class Import {
     log.logMinimal( BaseMessages.getString( PKG, "Import.Log.Starting" ) );
 
     Date start, stop;
-    Calendar cal;
     SimpleDateFormat df = new SimpleDateFormat( "yyyy/MM/dd HH:mm:ss.SSS" );
-    cal = Calendar.getInstance();
-    start = cal.getTime();
+    start = new Date(  );
     int returnCode = 0;
 
     try {
@@ -284,52 +358,19 @@ public class Import {
       }
 
       // Perform the actual import
-      //
-      RepositoryImporter importer = new RepositoryImporter( repository, importRules, limitDirs );
-      RepositoryImportFeedbackInterface feedbackInterface = new RepositoryImportFeedbackInterface() {
-
-        @Override
-        public void updateDisplay() {
+      IRepositoryImporter importer = repository.getImporter();
+      importer.setImportRules( importRules );
+      if ( !limitDirs.isEmpty() ) {
+        if ( importer instanceof CanLimitDirs ) {
+          ( (CanLimitDirs) importer ).setLimitDirs( limitDirs );
+        } else {
+          throw new KettleException( BaseMessages.getString( PKG, "Import.CouldntLimitDirs", importer.getClass()
+              .getCanonicalName() ) );
         }
-
-        @Override
-        public boolean transOverwritePrompt( TransMeta transMeta ) {
-          return replace;
-        }
-
-        @Override
-        public void showError( String title, String message, Exception e ) {
-          log.logError( title + " : " + message, e );
-        }
-
-        @Override
-        public void setLabel( String labelText ) {
-          log.logBasic( labelText );
-        }
-
-        @Override
-        public boolean jobOverwritePrompt( JobMeta jobMeta ) {
-          return replace;
-        }
-
-        @Override
-        public boolean askContinueOnErrorQuestion( String title, String message ) {
-          return continueOnError;
-        }
-
-        @Override
-        public void addLog( String line ) {
-          log.logBasic( line );
-        }
-
-        @Override
-        public boolean isAskingOverwriteConfirmation() {
-          return false;
-        }
-      };
+      }
+      RepositoryImportFeedbackInterface feedbackInterface = new ImportFeedback( log, continueOnError, replace, reader );
 
       // Import files in a certain directory
-      //
       importer.importAll( feedbackInterface, optionFileDir.toString(), filenames.toArray( new String[filenames
         .size()] ), targetDirectory, replace, continueOnError, optionComment.toString() );
 
@@ -346,11 +387,10 @@ public class Import {
     }
     log.logMinimal( BaseMessages.getString( PKG, "Import.Log.Finished" ) );
 
-    cal = Calendar.getInstance();
-    stop = cal.getTime();
-    String begin = df.format( start ).toString();
-    String end = df.format( stop ).toString();
+    stop = new Date(  );
 
+    String begin = df.format( start );
+    String end = df.format( stop );
     log.logMinimal( BaseMessages.getString( PKG, "Import.Log.StartStop", begin, end ) );
 
     long seconds = ( stop.getTime() - start.getTime() ) / 1000;
@@ -387,6 +427,24 @@ public class Import {
 
   }
 
+  private static List<String> pickupCmdArguments( String[] a ) {
+    List<String> args = new ArrayList<String>( a.length );
+    for ( String arg : a ) {
+      if ( !arg.isEmpty() ) {
+        args.add( arg );
+      }
+    }
+    return args;
+  }
+
+  private static CommandLineOption createOption( String option, String i18nKey, StringBuffer sb ) {
+    return new CommandLineOption( option, BaseMessages.getString( PKG, i18nKey ), sb );
+  }
+
+  private static CommandLineOption createOption( String option, String i18nKey, StringBuffer sb, boolean yesNo, boolean hidden  ) {
+    return new CommandLineOption( option, BaseMessages.getString( PKG, i18nKey ), sb, yesNo, hidden );
+  }
+
   /**
    * Parse an argument as an integer.
    *
@@ -410,8 +468,7 @@ public class Import {
     return def;
   }
 
-  private static final void exitJVM( int status ) {
-
+  private static void exitJVM( int status ) {
     System.exit( status );
   }
 }

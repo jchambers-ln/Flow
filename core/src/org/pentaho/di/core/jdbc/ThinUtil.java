@@ -29,6 +29,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.exception.KettleSQLException;
@@ -386,15 +387,14 @@ public class ThinUtil {
     }
 
     if ( index + 1 > sql.length() ) {
-      throw new KettleSQLException( "No closing "
-        + nextChar + " found, starting at location " + quoteIndex + " in : [" + sql + "]" );
+      throw new KettleSQLException( "No closing " + nextChar + " found, starting at location " + quoteIndex + " in : ["
+          + sql + "]" );
     }
     index++;
     return index;
   }
 
-  public static int findNextBracket( String sql, char skipChar, char nextChar, int index )
-    throws KettleSQLException {
+  public static int findNextBracket( String sql, char skipChar, char nextChar, int index ) throws KettleSQLException {
     return findNextBracket( sql, skipChar, nextChar, index, false );
   }
 
@@ -419,16 +419,16 @@ public class ThinUtil {
       }
     }
 
-    throw new KettleSQLException( "No closing "
-      + nextChar + " bracket found for " + skipChar + " at location " + index + " in : [" + sql + "]" );
+    throw new KettleSQLException( "No closing " + nextChar + " bracket found for " + skipChar + " at location " + index
+        + " in : [" + sql + "]" );
   }
 
   public static String stripQuotes( String string, char... quoteChars ) {
     StringBuilder builder = new StringBuilder( string );
     for ( char quoteChar : quoteChars ) {
       if ( countQuotes( builder.toString(), quoteChar ) == 2 ) {
-        if ( builder.length() > 0
-          && builder.charAt( 0 ) == quoteChar && builder.charAt( builder.length() - 1 ) == quoteChar ) {
+        if ( builder.length() > 0 && builder.charAt( 0 ) == quoteChar
+            && builder.charAt( builder.length() - 1 ) == quoteChar ) {
           // If there are quotes in between, don't do it...
           //
           builder.deleteCharAt( builder.length() - 1 );
@@ -497,8 +497,13 @@ public class ThinUtil {
 
   public static String findClause( String sqlString, String startClause, String... endClauses )
     throws KettleSQLException {
+    return findClauseWithRest( sqlString, startClause, endClauses ).getClause();
+  }
+
+  public static FoundClause findClauseWithRest( String sqlString, String startClause, String... endClauses )
+    throws KettleSQLException {
     if ( Const.isEmpty( sqlString ) ) {
-      return null;
+      return new FoundClause( null, null );
     }
 
     String sql = sqlString.toUpperCase();
@@ -513,19 +518,21 @@ public class ThinUtil {
     }
 
     if ( startIndex < 0 || startIndex >= sql.length() ) {
-      return null;
+      return new FoundClause( null, sqlString );
     }
 
     startIndex += startClause.length() + 1;
     if ( endClauses.length == 0 ) {
-      return sql.substring( startIndex );
+      return new FoundClause( sqlString.substring( startIndex ), null );
     }
 
+    // Index of first character of end clause
     int endIndex = sql.length();
+
     for ( String endClause : endClauses ) {
 
       int index = startIndex;
-      while ( index < sql.length() ) {
+      while ( index < endIndex ) {
         index = ThinUtil.skipChars( sql, index, '"', '\'' );
 
         // See if the end-clause is present at this location.
@@ -538,6 +545,43 @@ public class ThinUtil {
         index++;
       }
     }
-    return Const.trim( sqlString.substring( startIndex, endIndex ) );
+    String foundClause = Const.trim( sqlString.substring( startIndex, endIndex ) );
+    String rest = null;
+    if ( endIndex < sql.length() ) {
+      rest = Const.trim( sqlString.substring( endIndex ) );
+      if ( rest.length() == 0 ) {
+        rest = null;
+      }
+    }
+    return new FoundClause( foundClause, rest );
+  }
+
+  public static boolean like( String subject, String pattern ) {
+    return like( pattern ).matcher( subject ).matches();
+  }
+
+  public static Pattern like( String pattern ) {
+    if ( pattern == null ) {
+      throw new IllegalArgumentException( "Pattern cannot be null" );
+    }
+
+    // Escape regex meta characters
+    int len = pattern.length();
+    if ( len > 0 ) {
+      StringBuilder sb = new StringBuilder( len * 2 );
+      for ( int i = 0; i < len; i++ ) {
+        char c = pattern.charAt( i );
+        if ( "[](){}.*+?$^|#\\".indexOf( c ) != -1 ) {
+          sb.append( '\\' );
+        }
+        sb.append( c );
+      }
+      pattern = sb.toString();
+    }
+
+    // Translate LIKE operators to REGEX
+    pattern = pattern.replace( "_", "." ).replace("%", ".*?");
+
+    return Pattern.compile( pattern, Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
   }
 }

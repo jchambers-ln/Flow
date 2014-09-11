@@ -22,7 +22,10 @@
 
 package org.pentaho.di.trans.steps.mailinput;
 
+import org.junit.BeforeClass;
 import org.junit.Test;
+import org.pentaho.di.core.KettleClientEnvironment;
+import org.pentaho.di.core.exception.KettleException;
 
 /**
  * Tests for MailInputMeta class
@@ -31,8 +34,14 @@ import org.junit.Test;
  * @see MailInputMeta
  */
 public class MailInputMetaTest {
+
+  @BeforeClass
+  public static void setupBeforeClass() throws KettleException {
+    KettleClientEnvironment.init();
+  }
+
   @Test
-  public void testGetXML () {
+  public void testGetXML() {
     MailInputMeta meta = new MailInputMeta();
     meta.setInputFields( new MailInputField[0] );
     meta.getXML();

@@ -23,6 +23,7 @@
 package org.pentaho.di.core.plugins;
 
 import java.io.File;
+import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.MalformedURLException;
@@ -69,7 +70,11 @@ public class PluginRegistry {
   private Map<String, URLClassLoader> folderBasedClassLoaderMap = new HashMap<String, URLClassLoader>();
   private Map<Class<? extends PluginTypeInterface>, Map<PluginInterface, URLClassLoader>> classLoaderMap;
 
+  private Map<String, URLClassLoader> classLoaderGroupsMap;
+
   private Map<Class<? extends PluginTypeInterface>, List<String>> categoryMap;
+  
+  private Map<PluginInterface, String[]> parentClassloaderPatternMap = new HashMap<PluginInterface, String[]>();
 
   private static List<PluginTypeInterface> pluginTypes = new ArrayList<PluginTypeInterface>();
 
@@ -86,6 +91,7 @@ public class PluginRegistry {
     pluginMap = new HashMap<Class<? extends PluginTypeInterface>, List<PluginInterface>>();
     classLoaderMap = new HashMap<Class<? extends PluginTypeInterface>, Map<PluginInterface, URLClassLoader>>();
     categoryMap = new HashMap<Class<? extends PluginTypeInterface>, List<String>>();
+    classLoaderGroupsMap = new HashMap<String, URLClassLoader>();
   }
 
   /**
@@ -112,9 +118,16 @@ public class PluginRegistry {
   public synchronized void removePlugin( Class<? extends PluginTypeInterface> pluginType, PluginInterface plugin ) {
     List<PluginInterface> list = pluginMap.get( pluginType );
     list.remove( plugin );
+
     Map<PluginInterface, URLClassLoader> classLoaders = classLoaderMap.get( plugin.getPluginType() );
     if ( classLoaders != null ) {
       classLoaders.remove( plugin );
+    }
+
+    if ( !Const.isEmpty( plugin.getClassLoaderGroup() ) ) {
+      // Straight away remove the class loader for the whole group...
+      //
+      classLoaderGroupsMap.remove( plugin.getClassLoaderGroup() );
     }
 
     List<PluginTypeListener> listeners = this.getListenersForType( pluginType );
@@ -124,9 +137,12 @@ public class PluginRegistry {
       }
     }
   }
+  
+  public void addParentClassLoaderPatterns( PluginInterface plugin, String[] patterns ) {
+    parentClassloaderPatternMap.put( plugin, patterns );
+  }
 
-  public synchronized void registerPlugin( Class<? extends PluginTypeInterface> pluginType, PluginInterface plugin )
-    throws KettlePluginException {
+  public synchronized void registerPlugin( Class<? extends PluginTypeInterface> pluginType, PluginInterface plugin ) throws KettlePluginException {
 
     boolean changed = false; // Is this an add or an update?
 
@@ -332,8 +348,7 @@ public class PluginRegistry {
    * @return the instantiated class.
    * @throws KettlePluginException
    */
-  public <T> T loadClass( Class<? extends PluginTypeInterface> pluginType, Object object, Class<T> classType )
-    throws KettlePluginException {
+  public <T> T loadClass( Class<? extends PluginTypeInterface> pluginType, Object object, Class<T> classType ) throws KettlePluginException {
     PluginInterface plugin = getPlugin( pluginType, object );
     if ( plugin == null ) {
       return null;
@@ -353,13 +368,29 @@ public class PluginRegistry {
    * @return the instantiated class.
    * @throws KettlePluginException
    */
-  public <T> T loadClass( Class<? extends PluginTypeInterface> pluginType, String pluginId, Class<T> classType )
-    throws KettlePluginException {
+  public <T> T loadClass( Class<? extends PluginTypeInterface> pluginType, String pluginId, Class<T> classType ) throws KettlePluginException {
     PluginInterface plugin = getPlugin( pluginType, pluginId );
     if ( plugin == null ) {
       return null;
     }
     return loadClass( plugin, classType );
+  }
+  
+  private KettleURLClassLoader createClassLoader( PluginInterface plugin ) throws MalformedURLException,
+    UnsupportedEncodingException {
+    List<String> jarfiles = plugin.getLibraries();
+    URL[] urls = new URL[jarfiles.size()];
+    for ( int i = 0; i < jarfiles.size(); i++ ) {
+      File jarfile = new File( jarfiles.get( i ) );
+      urls[i] = new URL( URLDecoder.decode( jarfile.toURI().toURL().toString(), "UTF-8" ) );
+    }
+    ClassLoader classLoader = getClass().getClassLoader();
+    String[] patterns = parentClassloaderPatternMap.get( plugin );
+    if ( patterns != null ) {
+      return new KettleSelectiveParentFirstClassLoader( urls, classLoader, plugin.getDescription(), patterns );
+    } else {
+      return new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
+    }
   }
 
   /**
@@ -395,35 +426,16 @@ public class PluginRegistry {
         if ( plugin.isNativePlugin() ) {
           cl = (Class<? extends T>) Class.forName( className );
         } else {
-          List<String> jarfiles = plugin.getLibraries();
-          URL[] urls = new URL[jarfiles.size()];
-          for ( int i = 0; i < jarfiles.size(); i++ ) {
-            File jarfile = new File( jarfiles.get( i ) );
-            urls[i] = new URL( URLDecoder.decode( jarfile.toURI().toURL().toString(), "UTF-8" ) );
-          }
-
-          // Load the class!!
-          //
-          // First get the class loader: get the one that's the webstart classloader, not the thread classloader
-          //
-          ClassLoader classLoader = getClass().getClassLoader();
-
           URLClassLoader ucl = null;
 
           // If the plugin needs to have a separate class loader for each instance of the plugin.
           // This is not the default. By default we cache the class loader for each plugin ID.
           //
           if ( plugin.isSeparateClassLoaderNeeded() ) {
-
             // Create a new one each time
-            //
-            ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
-
+            ucl = createClassLoader( plugin );
           } else {
-
             // See if we can find a class loader to re-use.
-            //
-
             Map<PluginInterface, URLClassLoader> classLoaders = classLoaderMap.get( plugin.getPluginType() );
             if ( classLoaders == null ) {
               classLoaders = new HashMap<PluginInterface, URLClassLoader>();
@@ -436,14 +448,14 @@ public class PluginRegistry {
               if ( plugin.getPluginDirectory() != null ) {
                 ucl = folderBasedClassLoaderMap.get( plugin.getPluginDirectory().toString() );
                 if ( ucl == null ) {
-                  ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
+                  ucl = createClassLoader( plugin );
                   classLoaders.put( plugin, ucl ); // save for later use...
                   folderBasedClassLoaderMap.put( plugin.getPluginDirectory().toString(), ucl );
                 }
               } else {
                 ucl = classLoaders.get( plugin );
                 if ( ucl == null ) {
-                  ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
+                  ucl = createClassLoader( plugin );
                   classLoaders.put( plugin, ucl ); // save for later use...
                 }
               }
@@ -793,8 +805,7 @@ public class PluginRegistry {
    * @return a row buffer containing plugin information for the given plugin type
    * @throws KettlePluginException
    */
-  public RowBuffer getPluginInformation( Class<? extends PluginTypeInterface> pluginType )
-    throws KettlePluginException {
+  public RowBuffer getPluginInformation( Class<? extends PluginTypeInterface> pluginType ) throws KettlePluginException {
     RowBuffer rowBuffer = new RowBuffer( getPluginInformationRowMeta() );
     for ( PluginInterface plugin : getPlugins( pluginType ) ) {
 
@@ -905,26 +916,6 @@ public class PluginRegistry {
       if ( plugin.isNativePlugin() ) {
         return this.getClass().getClassLoader();
       } else {
-        List<String> jarfiles = plugin.getLibraries();
-        int librarySize = 0;
-        if ( jarfiles != null ) {
-          librarySize = jarfiles.size();
-        }
-        URL[] urls = new URL[librarySize];
-        if ( jarfiles != null ) {
-          for ( int i = 0; i < jarfiles.size(); i++ ) {
-            File jarfile = new File( jarfiles.get( i ) );
-            urls[i] = new URL( URLDecoder.decode( jarfile.toURI().toURL().toString(), "UTF-8" ) );
-          }
-        }
-
-        // Load the class!!
-        //
-        // First get the class loader: get the one that's the webstart
-        // classloader, not the thread classloader
-        //
-        ClassLoader classLoader = getClass().getClassLoader();
-
         URLClassLoader ucl = null;
 
         // If the plugin needs to have a separate class loader for each instance
@@ -933,16 +924,10 @@ public class PluginRegistry {
         // each plugin ID.
         //
         if ( plugin.isSeparateClassLoaderNeeded() ) {
-
           // Create a new one each time
-          //
-          ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
-
+          ucl = createClassLoader( plugin );
         } else {
-
           // See if we can find a class loader to re-use.
-          //
-
           Map<PluginInterface, URLClassLoader> classLoaders = classLoaderMap.get( plugin.getPluginType() );
           if ( classLoaders == null ) {
             classLoaders = new HashMap<PluginInterface, URLClassLoader>();
@@ -951,23 +936,32 @@ public class PluginRegistry {
             ucl = classLoaders.get( plugin );
           }
           if ( ucl == null ) {
-            if ( plugin.getPluginDirectory() != null ) {
-              ucl = folderBasedClassLoaderMap.get( plugin.getPluginDirectory().toString() );
+            if ( !Const.isEmpty( plugin.getClassLoaderGroup() ) ) {
+              ucl = classLoaderGroupsMap.get( plugin.getClassLoaderGroup() );
               if ( ucl == null ) {
-                ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
-                classLoaders.put( plugin, ucl ); // save for later use...
-                folderBasedClassLoaderMap.put( plugin.getPluginDirectory().toString(), ucl );
+                ucl = createClassLoader( plugin );
+                classLoaders.put( plugin, ucl );
+                classLoaderGroupsMap.put( plugin.getClassLoaderGroup(), ucl );
               }
             } else {
-              ucl = classLoaders.get( plugin );
-              if ( ucl == null ) {
-                if ( urls.length == 0 ) {
-                  if ( plugin instanceof ClassLoadingPluginInterface ) {
-                    return ( (ClassLoadingPluginInterface) plugin ).getClassLoader();
-                  }
+              if ( plugin.getPluginDirectory() != null ) {
+                ucl = folderBasedClassLoaderMap.get( plugin.getPluginDirectory().toString() );
+                if ( ucl == null ) {
+                  ucl = createClassLoader( plugin );
+                  classLoaders.put( plugin, ucl ); // save for later use...
+                  folderBasedClassLoaderMap.put( plugin.getPluginDirectory().toString(), ucl );
                 }
-                ucl = new KettleURLClassLoader( urls, classLoader, plugin.getDescription() );
-                classLoaders.put( plugin, ucl ); // save for later use...
+              } else {
+                ucl = classLoaders.get( plugin );
+                if ( ucl == null ) {
+                  if ( plugin.getLibraries().size() == 0 ) {
+                    if ( plugin instanceof ClassLoadingPluginInterface ) {
+                      return ( (ClassLoadingPluginInterface) plugin ).getClassLoader();
+                    }
+                  }
+                  ucl = createClassLoader( plugin );
+                  classLoaders.put( plugin, ucl ); // save for later use...
+                }
               }
             }
           }
@@ -1020,8 +1014,7 @@ public class PluginRegistry {
     return listeners.get( clazz );
   }
 
-  public PluginTypeInterface getPluginType( Class<? extends PluginTypeInterface> pluginTypeClass )
-    throws KettlePluginException {
+  public PluginTypeInterface getPluginType( Class<? extends PluginTypeInterface> pluginTypeClass ) throws KettlePluginException {
     try {
       // All these plugin type interfaces are singletons...
       // So we should call a static getInstance() method...

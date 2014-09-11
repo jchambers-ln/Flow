@@ -2,9 +2,12 @@ package org.pentaho.di.core.database;
 
 import org.junit.After;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
+import org.pentaho.di.core.KettleClientEnvironment;
+import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.logging.LogChannelInterface;
 
 import java.sql.Connection;
@@ -17,6 +20,7 @@ import java.util.Properties;
 import java.util.logging.Logger;
 
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertFalse;
 import static org.mockito.Mockito.*;
 
 
@@ -35,6 +39,11 @@ public class ConnectionPoolUtilTest implements Driver {
     } catch ( SQLException e ) {
       e.printStackTrace();
     }
+  }
+
+  @BeforeClass
+  public static void setupBeforeClass() throws KettleException {
+    KettleClientEnvironment.init();
   }
 
   @Before
@@ -70,6 +79,29 @@ public class ConnectionPoolUtilTest implements Driver {
     when( dbMeta.getPassword() ).thenReturn( ENCR_PASSWORD );
     Connection conn = ConnectionPoolUtil.getConnection( logChannelInterface, dbMeta, "", 1, 2 );
     assertTrue( conn != null );
+  }
+
+  @Test
+  public void testGetConnectionName() throws Exception {
+    when( dbMeta.getName() ).thenReturn( "CP2" );
+    when( dbMeta.getPassword() ).thenReturn( ENCR_PASSWORD );
+    String connectionName = ConnectionPoolUtil.buildPoolName( dbMeta, "" );
+    assertTrue( connectionName.equals( "CP2" ) );
+    assertFalse( connectionName.equals( "CP2pentaho" ) );
+
+    when( dbMeta.getDatabaseName() ).thenReturn( "pentaho" );
+    connectionName = ConnectionPoolUtil.buildPoolName( dbMeta, "" );
+    assertTrue( connectionName.equals( "CP2pentaho" ) );
+    assertFalse( connectionName.equals( "CP2pentaholocal" ) );
+
+    when( dbMeta.getHostname() ).thenReturn( "local" );
+    connectionName = ConnectionPoolUtil.buildPoolName( dbMeta, "" );
+    assertTrue( connectionName.equals( "CP2pentaholocal" ) );
+    assertFalse( connectionName.equals( "CP2pentaholocal3306" ) );
+
+    when( dbMeta.getDatabasePortNumberString() ).thenReturn( "3306" );
+    connectionName = ConnectionPoolUtil.buildPoolName( dbMeta, "" );
+    assertTrue( connectionName.equals( "CP2pentaholocal3306" ) );
   }
 
   @Override

@@ -111,7 +111,7 @@ public class ImportRulesDialog extends Dialog implements XulEventHandler {
 
   public boolean open() {
 
-    shell = new Shell( parentShell, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX | SWT.MIN );
+    shell = new Shell( parentShell, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MAX | SWT.MIN | SWT.APPLICATION_MODAL );
     shell.setImage( GUIResource.getInstance().getImageLogoSmall() );
 
     FormLayout formLayout = new FormLayout();
@@ -483,7 +483,7 @@ public class ImportRulesDialog extends Dialog implements XulEventHandler {
     String compositeClassName = rule.getCompositeClassName();
 
     Class<?> compositeClass;
-    Class<?>[] paramClasses = new Class[] {};
+    Class<?>[] paramClasses = new Class<?>[] {};
     Object[] paramArgs = new Object[] {};
     Constructor<?> compositeConstructor;
     try {

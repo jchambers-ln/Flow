@@ -23,6 +23,7 @@
 package org.pentaho.di.ui.spoon;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -109,20 +110,14 @@ public class SpoonSlave extends Composite implements TabItemInterface {
 
   private Spoon spoon;
 
-  private ColumnInfo[] colinf;
-
   private Tree wTree;
   private Text wText;
 
-  private Button wError;
   private Button wStart;
   private Button wPause;
   private Button wStop;
   private Button wRemove;
   private Button wSniff;
-  private Button wRefresh;
-
-  private FormData fdTree, fdText, fdSash;
 
   private boolean refreshBusy;
   private SlaveServerStatus slaveServerStatus;
@@ -140,10 +135,12 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     String name;
     String status;
     String id;
+    String[] path;
     int length;
 
     public TreeEntry( TreeItem treeItem ) {
-      String[] path = ConstUI.getTreeStrings( treeItem );
+      TreeItem treeIt = treeItem;
+      path = ConstUI.getTreeStrings( treeIt );
       this.length = path.length;
       if ( path.length > 0 ) {
         itemType = path[0];
@@ -152,10 +149,10 @@ public class SpoonSlave extends Composite implements TabItemInterface {
         name = path[1];
       }
       if ( path.length == 3 ) {
-        treeItem = treeItem.getParentItem();
+        treeIt = treeIt.getParentItem();
       }
-      status = treeItem.getText( 9 );
-      id = treeItem.getText( 13 );
+      status = treeIt.getText( 9 );
+      id = treeIt.getText( 13 );
     }
 
     boolean isTransformation() {
@@ -175,6 +172,9 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     }
 
     boolean isFinished() {
+      if ( Trans.STRING_FINISHED_WITH_ERRORS.equals( status ) ) {
+        return true;
+      }
       return Trans.STRING_FINISHED.equals( status );
     }
 
@@ -184,6 +184,76 @@ public class SpoonSlave extends Composite implements TabItemInterface {
 
     boolean isWaiting() {
       return Trans.STRING_WAITING.equals( status );
+    }
+
+    @Override
+    public boolean equals( Object o ) {
+      if ( this == o ) {
+        return true;
+      }
+      if ( !( o instanceof TreeEntry ) ) {
+        return false;
+      }
+
+      TreeEntry treeEntry = (TreeEntry) o;
+
+      if ( id != null ? !id.equals( treeEntry.id ) : treeEntry.id != null ) {
+        return false;
+      }
+      if ( itemType != null ? !itemType.equals( treeEntry.itemType ) : treeEntry.itemType != null ) {
+        return false;
+      }
+      if ( name != null ? !name.equals( treeEntry.name ) : treeEntry.name != null ) {
+        return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public int hashCode() {
+      int result = itemType != null ? itemType.hashCode() : 0;
+      result = 31 * result + ( name != null ? name.hashCode() : 0 );
+      result = 31 * result + ( id != null ? id.hashCode() : 0 );
+      result = 31 * result + ( path != null ? Arrays.hashCode( path ) : 0 );
+      result = 31 * result + length;
+      return result;
+    }
+
+    public TreeItem getTreeItem( Tree tree ) {
+      TreeItem[] items = tree.getItems();
+      for ( TreeItem item : items ) {
+        TreeItem treeItem = findTreeItem( item, 0 );
+        if ( treeItem != null ) {
+          return treeItem;
+        }
+      }
+      return null;
+    }
+
+    private TreeItem findTreeItem( TreeItem treeItem, int level ) {
+      if ( treeItem.getText().equals( path[ level ] ) ) {
+        if ( level == 1 ) {
+          if ( this.equals( getTreeEntry( treeItem ) ) ) {
+            treeItemSelected( treeItem );
+            treeItem.setExpanded( true );
+          } else {
+            return null;
+          }
+        }
+        if ( level == path.length - 1 ) {
+          return treeItem;
+        }
+
+        TreeItem[] items = treeItem.getItems();
+        for ( TreeItem item : items ) {
+          TreeItem found = findTreeItem( item, level + 1 );
+          if ( found != null ) {
+            return found;
+          }
+        }
+      }
+      return null;
     }
   }
 
@@ -212,7 +282,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     sash.setLayout( new FillLayout() );
 
     //CHECKSTYLE:LineLength:OFF
-    colinf = new ColumnInfo[] {
+    ColumnInfo[] colinf = new ColumnInfo[] {
       new ColumnInfo( BaseMessages.getString( PKG, "SpoonSlave.Column.Stepname" ), ColumnInfo.COLUMN_TYPE_TEXT, false, true ),
       new ColumnInfo( BaseMessages.getString( PKG, "SpoonSlave.Column.Copynr" ), ColumnInfo.COLUMN_TYPE_TEXT, false, true ),
       new ColumnInfo( BaseMessages.getString( PKG, "SpoonSlave.Column.Read" ), ColumnInfo.COLUMN_TYPE_TEXT, false, true ),
@@ -245,8 +315,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     wTree.setHeaderVisible( true );
     TreeMemory.addTreeListener( wTree, STRING_SLAVE_LOG_TREE_NAME + slaveServer.toString() );
     Rectangle bounds = spoon.tabfolder.getSwtTabset().getBounds();
-    for ( int i = 0; i < colinf.length; i++ ) {
-      ColumnInfo columnInfo = colinf[i];
+    for ( ColumnInfo columnInfo : colinf ) {
       TreeColumn treeColumn = new TreeColumn( wTree, columnInfo.getAllignement() );
       treeColumn.setText( columnInfo.getName() );
       treeColumn.setWidth( bounds.width / colinf.length );
@@ -284,7 +353,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     spoon.props.setLook( wText );
     wText.setVisible( true );
 
-    wRefresh = new Button( this, SWT.PUSH );
+    Button wRefresh = new Button( this, SWT.PUSH );
     wRefresh.setText( BaseMessages.getString( PKG, "SpoonSlave.Button.Refresh" ) );
     wRefresh.setEnabled( true );
     wRefresh.addSelectionListener( new SelectionAdapter() {
@@ -293,7 +362,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
       }
     } );
 
-    wError = new Button( this, SWT.PUSH );
+    Button wError = new Button( this, SWT.PUSH );
     wError.setText( BaseMessages.getString( PKG, "SpoonSlave.Button.ShowErrorLines" ) );
     wError.addSelectionListener( new SelectionAdapter() {
       public void widgetSelected( SelectionEvent e ) {
@@ -346,11 +415,11 @@ public class SpoonSlave extends Composite implements TabItemInterface {
       }
     } );
 
-    BaseStepDialog.positionBottomButtons( this, new Button[] {
-      wRefresh, wSniff, wStart, wPause, wStop, wRemove, wError }, Const.MARGIN, null );
+    BaseStepDialog.positionBottomButtons( this,
+        new Button[] { wRefresh, wSniff, wStart, wPause, wStop, wRemove, wError }, Const.MARGIN, null );
 
     // Put tree on top
-    fdTree = new FormData();
+    FormData fdTree = new FormData();
     fdTree.left = new FormAttachment( 0, 0 );
     fdTree.top = new FormAttachment( 0, 0 );
     fdTree.right = new FormAttachment( 100, 0 );
@@ -358,14 +427,14 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     wTree.setLayoutData( fdTree );
 
     // Put text in the middle
-    fdText = new FormData();
+    FormData fdText = new FormData();
     fdText.left = new FormAttachment( 0, 0 );
     fdText.top = new FormAttachment( 0, 0 );
     fdText.right = new FormAttachment( 100, 0 );
     fdText.bottom = new FormAttachment( 100, 0 );
     wText.setLayoutData( fdText );
 
-    fdSash = new FormData();
+    FormData fdSash = new FormData();
     fdSash.left = new FormAttachment( 0, 0 ); // First one in the left top corner
     fdSash.top = new FormAttachment( 0, 0 );
     fdSash.right = new FormAttachment( 100, 0 );
@@ -390,13 +459,12 @@ public class SpoonSlave extends Composite implements TabItemInterface {
       SlaveServerTransStatus transStatus = (SlaveServerTransStatus) item.getData( "transStatus" );
       try {
         if ( log.isDetailed() ) {
-          log.logDetailed(
-            "Getting transformation status for [{0}] on server [{1}]", transStatus.getTransName(),
-            SpoonSlave.this.slaveServer );
+          log.logDetailed( "Getting transformation status for [{0}] on server [{1}]", transStatus.getTransName(),
+              SpoonSlave.this.slaveServer );
         }
 
         Integer lastLine = lastLineMap.get( transStatus.getId() );
-        int lastLineNr = lastLine == null ? 0 : lastLine.intValue();
+        int lastLineNr = lastLine == null ? 0 : lastLine;
 
         SlaveServerTransStatus ts =
           SpoonSlave.this.slaveServer.getTransStatus(
@@ -413,17 +481,17 @@ public class SpoonSlave extends Composite implements TabItemInterface {
         if ( logging == null ) {
           logging = ts.getLoggingString();
         } else {
-          logging = new StringBuffer( logging ).append( ts.getLoggingString() ).toString();
+          logging = logging + ts.getLoggingString();
         }
 
         String[] lines = logging.split( "\r\n|\r|\n" );
         if ( lines.length > PropsUI.getInstance().getMaxNrLinesInLog() ) {
           // Trim to view the last x lines
           int offset = lines.length - PropsUI.getInstance().getMaxNrLinesInLog();
-          StringBuffer trimmedLog = new StringBuffer();
+          StringBuilder trimmedLog = new StringBuilder();
           // Keep only the text from offset to the end of the log
           while ( offset != lines.length ) {
-            trimmedLog.append( lines[offset++] + '\n' );
+            trimmedLog.append( lines[offset++] ).append( '\n' );
           }
           logging = trimmedLog.toString();
         }
@@ -431,8 +499,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
         loggingMap.put( transStatus.getId(), logging );
 
         item.removeAll();
-        for ( int s = 0; s < stepStatusList.size(); s++ ) {
-          StepStatus stepStatus = stepStatusList.get( s );
+        for ( StepStatus stepStatus : stepStatusList ) {
           TreeItem stepItem = new TreeItem( item, SWT.NONE );
           stepItem.setText( stepStatus.getSpoonSlaveLogFields() );
         }
@@ -448,7 +515,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
         }
 
         Integer lastLine = lastLineMap.get( jobStatus.getId() );
-        int lastLineNr = lastLine == null ? 0 : lastLine.intValue();
+        int lastLineNr = lastLine == null ? 0 : lastLine;
 
         SlaveServerJobStatus ts = slaveServer.getJobStatus( jobStatus.getJobName(), jobStatus.getId(), lastLineNr );
 
@@ -462,17 +529,17 @@ public class SpoonSlave extends Composite implements TabItemInterface {
         if ( logging == null ) {
           logging = ts.getLoggingString();
         } else {
-          logging = new StringBuffer( logging ).append( ts.getLoggingString() ).toString();
+          logging = logging + ts.getLoggingString();
         }
 
         String[] lines = logging.split( "\r\n|\r|\n" );
         if ( lines.length > PropsUI.getInstance().getMaxNrLinesInLog() ) {
           // Trim to view the last x lines
           int offset = lines.length - PropsUI.getInstance().getMaxNrLinesInLog();
-          StringBuffer trimmedLog = new StringBuffer();
+          StringBuilder trimmedLog = new StringBuilder();
           // Keep only the text from offset to the end of the log
           while ( offset != lines.length ) {
-            trimmedLog.append( lines[offset++] + '\n' );
+            trimmedLog.append( lines[offset++] ).append( '\n' );
           }
           logging = trimmedLog.toString();
         }
@@ -517,20 +584,29 @@ public class SpoonSlave extends Composite implements TabItemInterface {
 
   protected void refreshViewAndLog() {
     String[] selectionPath = null;
+    TreeItem selectedItem;
+    TreeEntry treeEntry = null;
     if ( wTree.getSelectionCount() == 1 ) {
-      selectionPath = ConstUI.getTreeStrings( wTree.getSelection()[0] );
+      selectedItem = wTree.getSelection()[ 0 ];
+      treeEntry = new TreeEntry( selectedItem );
+      selectionPath = ConstUI.getTreeStrings( selectedItem );
     }
 
     refreshView();
 
-    if ( selectionPath != null ) { // Select the same one again
+    if ( treeEntry != null ) { // Select the same one again
 
-      TreeItem treeItem = TreeUtil.findTreeItem( wTree, selectionPath );
+      TreeItem treeItem = treeEntry.getTreeItem( wTree );
+      if ( treeItem == null ) {
+        treeItem = TreeUtil.findTreeItem( wTree, selectionPath );
+      }
       if ( treeItem != null ) {
         wTree.setSelection( treeItem );
-        wTree.showItem( treeItem );
-        treeItemSelected( treeItem );
-        treeItem.setExpanded( true );
+        if ( treeEntry.length < 3 ) {
+          wTree.showItem( treeItem );
+          treeItemSelected( treeItem );
+          treeItem.setExpanded( true );
+        }
       }
     }
 
@@ -561,7 +637,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     if ( treeEntry.isTransformation() ) {
       // Transformation
       SlaveServerTransStatus transStatus = slaveServerStatus.findTransStatus( treeEntry.name, treeEntry.id );
-      StringBuffer message = new StringBuffer();
+      StringBuilder message = new StringBuilder();
       String errorDescription = transStatus.getErrorDescription();
       if ( !Const.isEmpty( errorDescription ) ) {
         message.append( errorDescription ).append( Const.CR ).append( Const.CR );
@@ -578,7 +654,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     } else if ( treeEntry.isJob() ) {
       // Job
       SlaveServerJobStatus jobStatus = slaveServerStatus.findJobStatus( treeEntry.name, treeEntry.id );
-      StringBuffer message = new StringBuffer();
+      StringBuilder message = new StringBuilder();
       String errorDescription = jobStatus.getErrorDescription();
       if ( !Const.isEmpty( errorDescription ) ) {
         message.append( errorDescription ).append( Const.CR ).append( Const.CR );
@@ -651,14 +727,18 @@ public class SpoonSlave extends Composite implements TabItemInterface {
   private TreeEntry getTreeEntry() {
     TreeItem[] ti = wTree.getSelection();
     if ( ti.length == 1 ) {
-      TreeEntry treeEntry = new TreeEntry( ti[0] );
-      if ( treeEntry.length <= 1 ) {
-        return null;
-      }
-      return treeEntry;
+      return getTreeEntry( ti[ 0 ] );
     } else {
       return null;
     }
+  }
+
+  private TreeEntry getTreeEntry( TreeItem ti ) {
+    TreeEntry treeEntry = new TreeEntry( ti );
+    if ( treeEntry.length <= 1 ) {
+      return null;
+    }
+    return treeEntry;
   }
 
   protected void stop() {
@@ -818,19 +898,21 @@ public class SpoonSlave extends Composite implements TabItemInterface {
 
     transParentItem.removeAll();
     jobParentItem.removeAll();
-
+    wText.setText( "" );
     // Determine the transformations on the slave servers
     try {
       slaveServerStatus = slaveServer.getStatus();
     } catch ( Exception e ) {
       slaveServerStatus = new SlaveServerStatus( "Error contacting server" );
       slaveServerStatus.setErrorDescription( Const.getStackTracker( e ) );
-      wText.setText( slaveServerStatus.getErrorDescription() );
+      if ( log.isDebug() ) {
+        log.logDebug( slaveServerStatus.getErrorDescription() );
+      }
+      wText.setText( e.getMessage() );
     }
 
     List<SlaveServerTransStatus> transStatusList = slaveServerStatus.getTransStatusList();
-    for ( int i = 0; i < transStatusList.size(); i++ ) {
-      SlaveServerTransStatus transStatus = transStatusList.get( i );
+    for ( SlaveServerTransStatus transStatus : transStatusList ) {
       TreeItem transItem = new TreeItem( transParentItem, SWT.NONE );
       transItem.setText( 0, transStatus.getTransName() );
       transItem.setText( 9, transStatus.getStatusDescription() );
@@ -865,12 +947,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
     while ( i < all.length() - crlen ) {
       if ( all.substring( i, i + crlen ).equalsIgnoreCase( Const.CR ) ) {
         String line = all.substring( startpos, i );
-        String uLine = line.toUpperCase();
-        if ( uLine.indexOf( BaseMessages.getString( PKG, "TransLog.System.ERROR" ) ) >= 0
-          || uLine.indexOf( BaseMessages.getString( PKG, "TransLog.System.EXCEPTION" ) ) >= 0
-          || uLine.indexOf( "ERROR" ) >= 0 || // i18n for compatibilty to non translated steps a.s.o.
-          uLine.indexOf( "EXCEPTION" ) >= 0 // i18n for compatibilty to non translated steps a.s.o.
-        ) {
+        if ( lineHasErrors( line ) ) {
           err.add( line );
         }
         // New start of line
@@ -880,12 +957,7 @@ public class SpoonSlave extends Composite implements TabItemInterface {
       i++;
     }
     String line = all.substring( startpos );
-    String uLine = line.toUpperCase();
-    if ( uLine.indexOf( BaseMessages.getString( PKG, "TransLog.System.ERROR2" ) ) >= 0
-      || uLine.indexOf( BaseMessages.getString( PKG, "TransLog.System.EXCEPTION2" ) ) >= 0
-      || uLine.indexOf( "ERROR" ) >= 0 || // i18n for compatibilty to non translated steps a.s.o.
-      uLine.indexOf( "EXCEPTION" ) >= 0 // i18n for compatibilty to non translated steps a.s.o.
-    ) {
+    if ( lineHasErrors( line ) ) { // i18n for compatibilty to non translated steps a.s.o.
       err.add( line );
     }
 
@@ -896,9 +968,9 @@ public class SpoonSlave extends Composite implements TabItemInterface {
       }
 
       EnterSelectionDialog esd = new EnterSelectionDialog( shell, err_lines,
-        BaseMessages.getString( PKG, "TransLog.Dialog.ErrorLines.Title" ),
-        BaseMessages.getString( PKG, "TransLog.Dialog.ErrorLines.Message" ) );
-      line = esd.open();
+              BaseMessages.getString( PKG, "TransLog.Dialog.ErrorLines.Title" ), BaseMessages.getString( PKG,
+                  "TransLog.Dialog.ErrorLines.Message" ) );
+      esd.open();
       /*
        * TODO: we have multiple transformation we can go to: which one should we pick? if (line != null) { for (i = 0; i
        * < spoon.getTransMeta().nrSteps(); i++) { StepMeta stepMeta = spoon.getTransMeta().getStep(i); if
@@ -906,6 +978,20 @@ public class SpoonSlave extends Composite implements TabItemInterface {
        * System.out.println("Error line selected: "+line); }
        */
     }
+  }
+
+  private boolean lineHasErrors( String line ) {
+    line = line.toUpperCase();
+    return line.contains( BaseMessages.getString( PKG, "TransLog.System.ERROR2" ) )
+        || line.contains( BaseMessages.getString( PKG, "TransLog.System.EXCEPTION2" ) ) || line.contains( "ERROR" ) || // i18n
+                                                                                                                       // for
+                                                                                                                       // compatibilty
+                                                                                                                       // to
+                                                                                                                       // non
+                                                                                                                       // translated
+                                                                                                                       // steps
+                                                                                                                       // a.s.o.
+        line.contains( "EXCEPTION" );
   }
 
   public String toString() {

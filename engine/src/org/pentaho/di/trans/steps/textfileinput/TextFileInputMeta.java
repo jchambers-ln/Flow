@@ -1,4 +1,4 @@
-//CHECKSTYLE:FileLength:OFF
+// CHECKSTYLE:FileLength:OFF
 /*! ******************************************************************************
  *
  * Pentaho Data Integration
@@ -761,8 +761,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
     this.fileCompression = fileCompression;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode );
   }
 
@@ -792,6 +791,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
     }
 
     retval.dateFormatLocale = (Locale) dateFormatLocale.clone();
+    retval.fileCompression = fileCompression;
 
     return retval;
   }
@@ -1060,7 +1060,8 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
       retval.append( "      " ).append( XMLHandler.addTagValue( "include_subfolders", includeSubFolders[i] ) );
     }
     retval.append( "      " ).append( XMLHandler.addTagValue( "type", fileType ) );
-    retval.append( "      " ).append( XMLHandler.addTagValue( "compression", fileCompression ) );
+    retval.append( "      " ).append( XMLHandler.addTagValue( "compression",
+      ( fileCompression == null ) ? "None" : fileCompression ) );
     retval.append( "    </file>" ).append( Const.CR );
 
     retval.append( "    <filters>" ).append( Const.CR );
@@ -1208,6 +1209,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
       fileType = XMLHandler.getTagValue( stepnode, "file", "type" );
       fileCompression = XMLHandler.getTagValue( stepnode, "file", "compression" );
       if ( fileCompression == null ) {
+        fileCompression = "None";
         if ( YES.equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "file", "zipped" ) ) ) {
           fileCompression = "Zip";
         }
@@ -1330,8 +1332,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
     return null;
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       acceptingFilenames = rep.getStepAttributeBoolean( id_step, "accept_filenames" );
       passingThruFields = rep.getStepAttributeBoolean( id_step, "passing_through_fields" );
@@ -1392,6 +1393,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
       fileType = rep.getStepAttributeString( id_step, "file_type" );
       fileCompression = rep.getStepAttributeString( id_step, "compression" );
       if ( fileCompression == null ) {
+        fileCompression = "None";
         if ( rep.getStepAttributeBoolean( id_step, "file_zipped" ) ) {
           fileCompression = "Zip";
         }
@@ -1463,8 +1465,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "accept_filenames", acceptingFilenames );
       rep.saveStepAttribute( id_transformation, id_step, "passing_through_fields", passingThruFields );
@@ -1508,7 +1509,8 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
         rep.saveStepAttribute( id_transformation, id_step, i, "include_subfolders", includeSubFolders[i] );
       }
       rep.saveStepAttribute( id_transformation, id_step, "file_type", fileType );
-      rep.saveStepAttribute( id_transformation, id_step, "compression", fileCompression );
+      rep.saveStepAttribute( id_transformation, id_step, "compression",
+        ( fileCompression == null ) ? "None" : fileCompression );
 
       for ( int i = 0; i < filter.length; i++ ) {
         rep.saveStepAttribute( id_transformation, id_step, i, "filter_position", filter[i].getFilterPosition() );
@@ -2010,8 +2012,7 @@ public class TextFileInputMeta extends BaseStepMeta implements StepMetaInterface
    * @return the filename of the exported resource
    */
   public String exportResources( VariableSpace space, Map<String, ResourceDefinition> definitions,
-    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore )
-    throws KettleException {
+    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore ) throws KettleException {
     try {
       // The object that we're modifying here is a copy of the original!
       // So let's change the filename from relative to absolute by grabbing the file object...

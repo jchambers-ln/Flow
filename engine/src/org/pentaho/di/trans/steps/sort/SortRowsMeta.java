@@ -44,9 +44,9 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
+import org.pentaho.di.trans.step.StepInjectionMetaEntry;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
-import org.pentaho.di.trans.step.StepMetaInjectionInterface;
 import org.pentaho.di.trans.step.StepMetaInterface;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
@@ -158,8 +158,7 @@ public class SortRowsMeta extends BaseStepMeta implements StepMetaInterface {
     this.prefix = prefix;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode );
   }
 
@@ -264,17 +263,11 @@ public class SortRowsMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       directory = rep.getStepAttributeString( id_step, "directory" );
       prefix = rep.getStepAttributeString( id_step, "prefix" );
-      int sortSizeInt = (int) rep.getStepAttributeInteger( id_step, "sort_size" );
-      if ( sortSizeInt > 0 ) {
-        sortSize = Integer.toString( sortSizeInt ); // For backward compatibility
-      } else {
-        sortSize = rep.getStepAttributeString( id_step, "sort_size" );
-      }
+      sortSize = rep.getStepAttributeString( id_step, "sort_size" );
       freeMemoryLimit = rep.getStepAttributeString( id_step, "free_memory" );
 
       compressFiles = rep.getStepAttributeBoolean( id_step, "compress" );
@@ -297,8 +290,7 @@ public class SortRowsMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "directory", directory );
       rep.saveStepAttribute( id_transformation, id_step, "prefix", prefix );
@@ -558,7 +550,12 @@ public class SortRowsMeta extends BaseStepMeta implements StepMetaInterface {
   }
 
   @Override
-  public StepMetaInjectionInterface getStepMetaInjectionInterface() {
+  public SortRowsMetaInjection getStepMetaInjectionInterface() {
     return new SortRowsMetaInjection( this );
+  }
+
+  @Override
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException {
+    return getStepMetaInjectionInterface().extractStepMetadataEntries();
   }
 }

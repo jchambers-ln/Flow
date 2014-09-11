@@ -318,8 +318,7 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     this.fieldName = resultName;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -409,7 +408,6 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     retval.append( "    " + XMLHandler.addTagValue( "urlField", urlField ) );
     retval.append( "    " + XMLHandler.addTagValue( "bodyField", bodyField ) );
     retval.append( "    " + XMLHandler.addTagValue( "httpLogin", httpLogin ) );
-    retval.append( "    " + XMLHandler.addTagValue( "httpPassword", httpPassword ) );
     retval.append( "    "
       + XMLHandler.addTagValue( "httpPassword", Encr.encryptPasswordIfNotUsingVariables( httpPassword ) ) );
 
@@ -418,7 +416,10 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     retval.append( "    " + XMLHandler.addTagValue( "preemptive", preemptive ) );
 
     retval.append( "    " + XMLHandler.addTagValue( "trustStoreFile", trustStoreFile ) );
-    retval.append( "    " + XMLHandler.addTagValue( "trustStorePassword", trustStorePassword ) );
+    retval
+        .append( "    "
+            + XMLHandler.addTagValue( "trustStorePassword", Encr
+                .encryptPasswordIfNotUsingVariables( trustStorePassword ) ) );
 
     retval.append( "    <headers>" + Const.CR );
     for ( int i = 0; i < headerName.length; i++ ) {
@@ -447,8 +448,7 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       applicationType = XMLHandler.getTagValue( stepnode, "applicationType" );
       method = XMLHandler.getTagValue( stepnode, "method" );
@@ -467,7 +467,8 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
       preemptive = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "preemptive" ) );
 
       trustStoreFile = XMLHandler.getTagValue( stepnode, "trustStoreFile" );
-      trustStorePassword = XMLHandler.getTagValue( stepnode, "trustStorePassword" );
+      trustStorePassword =
+          Encr.decryptPasswordOptionallyEncrypted( XMLHandler.getTagValue( stepnode, "trustStorePassword" ) );
 
       Node headernode = XMLHandler.getSubNode( stepnode, "headers" );
       int nrheaders = XMLHandler.countNodes( headernode, "header" );
@@ -494,8 +495,7 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       applicationType = rep.getStepAttributeString( id_step, "applicationType" );
       method = rep.getStepAttributeString( id_step, "method" );
@@ -514,7 +514,8 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
       proxyPort = rep.getStepAttributeString( id_step, "proxyPort" );
 
       trustStoreFile = rep.getStepAttributeString( id_step, "trustStoreFile" );
-      trustStorePassword = rep.getStepAttributeString( id_step, "trustStorePassword" );
+      trustStorePassword =
+          Encr.decryptPasswordOptionallyEncrypted( rep.getStepAttributeString( id_step, "trustStorePassword" ) );
 
       preemptive = rep.getStepAttributeBoolean( id_step, "preemptive" );
       int nrheaders = rep.countNrStepAttributes( id_step, "header_field" );
@@ -539,8 +540,7 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "applicationType", applicationType );
       rep.saveStepAttribute( id_transformation, id_step, "method", method );
@@ -559,7 +559,8 @@ public class RestMeta extends BaseStepMeta implements StepMetaInterface {
       rep.saveStepAttribute( id_transformation, id_step, "proxyPort", proxyPort );
 
       rep.saveStepAttribute( id_transformation, id_step, "trustStoreFile", trustStoreFile );
-      rep.saveStepAttribute( id_transformation, id_step, "trustStorePassword", trustStorePassword );
+      rep.saveStepAttribute( id_transformation, id_step, "trustStorePassword", Encr
+          .encryptPasswordIfNotUsingVariables( trustStorePassword ) );
 
       rep.saveStepAttribute( id_transformation, id_step, "preemptive", preemptive );
       for ( int i = 0; i < headerName.length; i++ ) {

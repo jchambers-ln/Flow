@@ -1,4 +1,4 @@
-//CHECKSTYLE:FileLength:OFF
+// CHECKSTYLE:FileLength:OFF
 /*! ******************************************************************************
  *
  * Pentaho Data Integration
@@ -268,6 +268,7 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   private static final String FIELDNAME_PROTECTOR = "_";
 
   private String name;
+  private String displayName;
   private int accessType; // Database.TYPE_ODBC / NATIVE / OCI
   private String hostname;
   private String databaseName;
@@ -385,6 +386,26 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   @Override
   public void setName( String name ) {
     this.name = name;
+
+    // Default display name to be the same as connection name if it has not
+    // been initialized before
+    if ( ( getDisplayName() == null ) || ( getDisplayName().length() == 0 ) ) {
+      setDisplayName( name );
+    }
+  }
+
+  /**
+   * @return Returns the un-escaped connection Name.
+   */
+  public String getDisplayName() {
+    return displayName;
+  }
+
+  /**
+   * @param displayName The un-escaped connection Name to set.
+   */
+  public void setDisplayName( String displayName ) {
+    this.displayName = displayName;
   }
 
   /**
@@ -1297,7 +1318,7 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   }
 
   /**
-   * @param usePool
+   * @param clustered
    *          true if we want to use a database connection pool
    */
   @Override
@@ -1435,7 +1456,7 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   }
 
   /**
-   * @param useStreaming
+   * @param quoteAllFields
    *          true if we want the database to stream results (normally this is an option just for MySQL).
    */
   @Override
@@ -1471,7 +1492,7 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   }
 
   /**
-   * @param forceLowerCase
+   * @param forceUpperCase
    *          true if all identifiers should be forced to upper case
    */
   @Override
@@ -1540,13 +1561,12 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
    *          a connected database
    * @param schemaName
    * @param tableName
-   * @param idxFields
+   * @param idx_fields
    * @return true if the index exists, false if it doesn't.
    * @throws KettleDatabaseException
    */
   @Override
-  public boolean checkIndexExists( Database database, String schemaName, String tableName, String[] idx_fields )
-    throws KettleDatabaseException {
+  public boolean checkIndexExists( Database database, String schemaName, String tableName, String[] idx_fields ) throws KettleDatabaseException {
 
     String tablename = database.getDatabaseMeta().getQuotedSchemaTableCombination( schemaName, tableName );
 
@@ -1914,13 +1934,11 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
     return releaseSavepoint;
   }
 
-  public Long getNextBatchIdUsingSequence( String sequenceName, String schemaName, DatabaseMeta dbm, Database ldb )
-    throws KettleDatabaseException {
+  public Long getNextBatchIdUsingSequence( String sequenceName, String schemaName, DatabaseMeta dbm, Database ldb ) throws KettleDatabaseException {
     return ldb.getNextSequenceValue( schemaName, sequenceName, null );
   }
 
-  public Long getNextBatchIdUsingAutoIncSQL( String autoIncSQL, DatabaseMeta dbm, Database ldb )
-    throws KettleDatabaseException {
+  public Long getNextBatchIdUsingAutoIncSQL( String autoIncSQL, DatabaseMeta dbm, Database ldb ) throws KettleDatabaseException {
     Long rtn = null;
     PreparedStatement stmt = ldb.prepareSQL( autoIncSQL, true );
     try {
@@ -2000,9 +2018,9 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
    * Returns the tablespace DDL fragment for a "Data" tablespace. In most databases that use tablespaces this is where
    * the tables are to be created.
    *
-   * @param VariableSpace
+   * @param variables
    *          variables used for possible substitution
-   * @param DatabaseMeta
+   * @param databaseMeta
    *          databaseMeta the database meta used for possible string enclosure of the tablespace. This method needs
    *          this as this is done after environmental substitution.
    *
@@ -2017,9 +2035,9 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   /**
    * Returns the tablespace DDL fragment for a "Index" tablespace.
    *
-   * @param VariableSpace
+   * @param variables
    *          variables used for possible substitution
-   * @param DatabaseMeta
+   * @param databaseMeta
    *          databaseMeta the database meta used for possible string enclosure of the tablespace. This method needs
    *          this as this is done after environmental substitution.
    *
@@ -2035,13 +2053,13 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
    * Returns an empty string as most databases do not support tablespaces. Subclasses can override this method to
    * generate the DDL.
    *
-   * @param VariableSpace
+   * @param variables
    *          variables needed for variable substitution.
-   * @param DatabaseMeta
+   * @param databaseMeta
    *          databaseMeta needed for it's quoteField method. Since we are doing variable substitution we need to meta
    *          so that we can act on the variable substitution first and then the creation of the entire string that will
    *          be retuned.
-   * @param String
+   * @param tablespaceName
    *          tablespaceName name of the tablespace.
    *
    * @return String an empty String as most databases do not use tablespaces.
@@ -2053,18 +2071,17 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   /**
    * This method allows a database dialect to convert database specific data types to Kettle data types.
    *
-   * @param resultSet
+   * @param rs
    *          The result set to use
-   * @param valueMeta
+   * @param val
    *          The description of the value to retrieve
-   * @param index
+   * @param i
    *          the index on which we need to retrieve the value, 0-based.
    * @return The correctly converted Kettle data type corresponding to the valueMeta description.
    * @throws KettleDatabaseException
    */
   @Override
-  public Object getValueFromResultSet( ResultSet rs, ValueMetaInterface val, int i )
-    throws KettleDatabaseException {
+  public Object getValueFromResultSet( ResultSet rs, ValueMetaInterface val, int i ) throws KettleDatabaseException {
 
     return val.getValueFromResultSet( this, rs, i );
 
@@ -2089,8 +2106,7 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   }
 
   @Override
-  public String getSQLValue( ValueMetaInterface valueMeta, Object valueData, String dateFormat )
-    throws KettleValueException {
+  public String getSQLValue( ValueMetaInterface valueMeta, Object valueData, String dateFormat ) throws KettleValueException {
 
     StringBuilder ins = new StringBuilder();
 
@@ -2152,13 +2168,22 @@ public abstract class BaseDatabaseMeta implements Cloneable, DatabaseInterface {
   public String getSafeFieldname( String fieldname ) {
     StringBuffer newName = new StringBuffer( fieldname.length() );
 
-    // alpha numerics only
+    char[] protectors = getFieldnameProtector().toCharArray();
+
+    // alpha numerics , underscores, field protectors only
     for ( int idx = 0; idx < fieldname.length(); idx++ ) {
       char c = fieldname.charAt( idx );
-      if ( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || ( c >= '0' && c <= '9' ) ) {
+      if ( ( c >= 'a' && c <= 'z' ) || ( c >= 'A' && c <= 'Z' ) || ( c >= '0' && c <= '9' ) || ( c == '_' ) ) {
         newName.append( c );
       } else if ( c == ' ' ) {
         newName.append( '_' );
+      } else {
+        // allow protectors
+        for ( char protector : protectors ) {
+          if ( c == protector ) {
+            newName.append( c );
+          }
+        }
       }
       // else {
       // swallow this character

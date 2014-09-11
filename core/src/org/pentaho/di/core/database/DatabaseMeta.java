@@ -1,4 +1,4 @@
-//CHECKSTYLE:FileLength:OFF
+// CHECKSTYLE:FileLength:OFF
 /*! ******************************************************************************
  *
  * Pentaho Data Integration
@@ -436,7 +436,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   /**
    * Short description of the access type, used in XML and the repository.
    */
-  public static final String[] dbAccessTypeCode = { "Native", "ODBC", "OCI", "Plugin", ", ", };
+  public static final String[] dbAccessTypeCode = { "Native", "ODBC", "OCI", "Plugin", "JNDI", ",", };
 
   /**
    * Longer description for user interactions.
@@ -560,15 +560,14 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   /**
    * Search for the right type of DatabaseInterface object and return it.
    *
-   * @param databaseType
+   * @param databaseTypeDesc
    *          the type of DatabaseInterface to look for (id or description)
    * @return The requested DatabaseInterface
    *
    * @throws KettleDatabaseException
    *           when the type could not be found or referenced.
    */
-  private static final DatabaseInterface findDatabaseInterface( String databaseTypeDesc )
-    throws KettleDatabaseException {
+  private static final DatabaseInterface findDatabaseInterface( String databaseTypeDesc ) throws KettleDatabaseException {
     PluginRegistry registry = PluginRegistry.getInstance();
     PluginInterface plugin = registry.getPlugin( DatabasePluginType.class, databaseTypeDesc );
     if ( plugin == null ) {
@@ -650,6 +649,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
     }
 
     setName( oldInterface.getName() );
+    setDisplayName( oldInterface.getDisplayName() );
     setAccessType( oldInterface.getAccessType() );
     setHostname( oldInterface.getHostname() );
     setDBName( oldInterface.getDatabaseName() );
@@ -686,6 +686,19 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   @Override
   public String getName() {
     return databaseInterface.getName();
+  }
+
+  public void setDisplayName( String displayName ) {
+    databaseInterface.setDisplayName( displayName );
+  }
+
+  /**
+   * Returns the name of the database connection
+   *
+   * @return The name of the database connection
+   */
+  public String getDisplayName() {
+    return databaseInterface.getDisplayName();
   }
 
   /**
@@ -906,7 +919,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
 
   @Override
   public String toString() {
-    return getName();
+    return getDisplayName();
   }
 
   /**
@@ -959,6 +972,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
       }
 
       setName( XMLHandler.getTagValue( con, "name" ) );
+      setDisplayName( getName() );
       setHostname( XMLHandler.getTagValue( con, "server" ) );
       String acc = XMLHandler.getTagValue( con, "access" );
       setAccessType( getAccessType( acc ) );
@@ -2489,7 +2503,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   }
 
   /**
-   * @param forceLowerCase
+   * @param forceUpperCase
    *          true if all identifiers should be forced to upper case
    */
   public void setForcingIdentifiersToUpperCase( boolean forceUpperCase ) {
@@ -2557,8 +2571,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   }
 
   @Override
-  public String fieldSubstitute( String aString, RowMetaInterface rowMeta, Object[] rowData )
-    throws KettleValueException {
+  public String fieldSubstitute( String aString, RowMetaInterface rowMeta, Object[] rowData ) throws KettleValueException {
     return variables.fieldSubstitute( aString, rowMeta, rowData );
   }
 
@@ -2647,7 +2660,7 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
   }
 
   /**
-   * @param useStreaming
+   * @param useDoubleDecimalSeparator
    *          true if we want the database to stream results (normally this is an option just for MySQL).
    */
   public void setUsingDoubleDecimalAsSchemaTableSeparator( boolean useDoubleDecimalSeparator ) {
@@ -2831,13 +2844,11 @@ public class DatabaseMeta extends SharedObjectBase implements Cloneable, XMLInte
     return databaseInterface.isMySQLVariant();
   }
 
-  public Long getNextBatchId( Database ldb, String schemaName, String tableName, String fieldName )
-    throws KettleDatabaseException {
+  public Long getNextBatchId( Database ldb, String schemaName, String tableName, String fieldName ) throws KettleDatabaseException {
     return databaseInterface.getNextBatchId( this, ldb, schemaName, tableName, fieldName );
   }
 
-  public Object getValueFromResultSet( ResultSet rs, ValueMetaInterface val, int i )
-    throws KettleDatabaseException {
+  public Object getValueFromResultSet( ResultSet rs, ValueMetaInterface val, int i ) throws KettleDatabaseException {
     return databaseInterface.getValueFromResultSet( rs, val, i );
   }
 

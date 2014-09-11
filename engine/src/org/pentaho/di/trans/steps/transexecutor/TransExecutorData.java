@@ -36,15 +36,18 @@ import org.pentaho.di.trans.step.StepDataInterface;
 /**
  * @author Matt
  * @since 18-mar-2013
- *
+ * 
  */
 public class TransExecutorData extends BaseStepData implements StepDataInterface {
-  public Trans executorTrans;
-  public TransMeta executorTransMeta;
-  public RowMetaInterface inputRowMeta;
-  public RowMetaInterface executionResultsOutputRowMeta;
-  public RowMetaInterface resultRowsOutputRowMeta;
-  public RowMetaInterface resultFilesOutputRowMeta;
+  private Trans executorTrans;
+  private TransMeta executorTransMeta;
+
+  private RowMetaInterface inputRowMeta;
+
+  private RowMetaInterface executorStepOutputRowMeta;
+  private RowMetaInterface resultRowsOutputRowMeta;
+  private RowMetaInterface executionResultsOutputRowMeta;
+  private RowMetaInterface resultFilesOutputRowMeta;
 
   public List<RowMetaAndData> groupBuffer;
   public int groupSize;
@@ -53,13 +56,103 @@ public class TransExecutorData extends BaseStepData implements StepDataInterface
   public String groupField;
   public int groupFieldIndex;
   public ValueMetaInterface groupFieldMeta;
+
   public Object prevGroupFieldData;
-  public RowSet resultRowsRowSet;
-  public RowSet resultFilesRowSet;
-  public RowSet executionResultRowSet;
+
+  private RowSet executorStepOutputRowSet;
+  private RowSet resultRowsRowSet;
+  private RowSet resultFilesRowSet;
+  private RowSet executionResultRowSet;
 
   public TransExecutorData() {
     super();
   }
 
+  public Trans getExecutorTrans() {
+    return executorTrans;
+  }
+
+  public void setExecutorTrans( Trans executorTrans ) {
+    this.executorTrans = executorTrans;
+  }
+
+  public TransMeta getExecutorTransMeta() {
+    return executorTransMeta;
+  }
+
+  public void setExecutorTransMeta( TransMeta executorTransMeta ) {
+    this.executorTransMeta = executorTransMeta;
+  }
+
+  public RowMetaInterface getInputRowMeta() {
+    return inputRowMeta;
+  }
+
+  public void setInputRowMeta( RowMetaInterface inputRowMeta ) {
+    this.inputRowMeta = inputRowMeta;
+  }
+
+  public RowMetaInterface getExecutorStepOutputRowMeta() {
+    return executorStepOutputRowMeta;
+  }
+
+  public void setExecutorStepOutputRowMeta( RowMetaInterface executorStepOutputRowMeta ) {
+    this.executorStepOutputRowMeta = executorStepOutputRowMeta;
+  }
+
+  public RowMetaInterface getResultRowsOutputRowMeta() {
+    return resultRowsOutputRowMeta;
+  }
+
+  public void setResultRowsOutputRowMeta( RowMetaInterface resultRowsOutputRowMeta ) {
+    this.resultRowsOutputRowMeta = resultRowsOutputRowMeta;
+  }
+
+  public RowMetaInterface getExecutionResultsOutputRowMeta() {
+    return executionResultsOutputRowMeta;
+  }
+
+  public void setExecutionResultsOutputRowMeta( RowMetaInterface executionResultsOutputRowMeta ) {
+    this.executionResultsOutputRowMeta = executionResultsOutputRowMeta;
+  }
+
+  public RowMetaInterface getResultFilesOutputRowMeta() {
+    return resultFilesOutputRowMeta;
+  }
+
+  public void setResultFilesOutputRowMeta( RowMetaInterface resultFilesOutputRowMeta ) {
+    this.resultFilesOutputRowMeta = resultFilesOutputRowMeta;
+  }
+
+  public RowSet getExecutorStepOutputRowSet() {
+    return executorStepOutputRowSet;
+  }
+
+  public void setExecutorStepOutputRowSet( RowSet executorStepOutputRowSet ) {
+    this.executorStepOutputRowSet = executorStepOutputRowSet;
+  }
+
+  public RowSet getResultRowsRowSet() {
+    return resultRowsRowSet;
+  }
+
+  public void setResultRowsRowSet( RowSet resultRowsRowSet ) {
+    this.resultRowsRowSet = resultRowsRowSet;
+  }
+
+  public RowSet getResultFilesRowSet() {
+    return resultFilesRowSet;
+  }
+
+  public void setResultFilesRowSet( RowSet resultFilesRowSet ) {
+    this.resultFilesRowSet = resultFilesRowSet;
+  }
+
+  public RowSet getExecutionResultRowSet() {
+    return executionResultRowSet;
+  }
+
+  public void setExecutionResultRowSet( RowSet executionResultRowSet ) {
+    this.executionResultRowSet = executionResultRowSet;
+  }
 }

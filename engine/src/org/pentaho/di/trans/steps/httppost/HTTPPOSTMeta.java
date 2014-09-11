@@ -28,6 +28,7 @@ import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.database.DatabaseMeta;
+import org.pentaho.di.core.encryption.Encr;
 import org.pentaho.di.core.exception.KettleException;
 import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.exception.KettleXMLException;
@@ -312,8 +313,7 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
     this.fieldName = resultName;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -407,7 +407,8 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
     retval.append( "    " + XMLHandler.addTagValue( "urlField", urlField ) );
     retval.append( "    " + XMLHandler.addTagValue( "requestEntity", requestEntity ) );
     retval.append( "    " + XMLHandler.addTagValue( "httpLogin", httpLogin ) );
-    retval.append( "    " + XMLHandler.addTagValue( "httpPassword", httpPassword ) );
+    retval.append( "    "
+      + XMLHandler.addTagValue( "httpPassword", Encr.encryptPasswordIfNotUsingVariables( httpPassword ) ) );
     retval.append( "    " + XMLHandler.addTagValue( "proxyHost", proxyHost ) );
     retval.append( "    " + XMLHandler.addTagValue( "proxyPort", proxyPort ) );
     retval.append( "    " + XMLHandler.addTagValue( "socketTimeout", socketTimeout ) );
@@ -441,8 +442,7 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       postafile = "Y".equalsIgnoreCase( XMLHandler.getTagValue( stepnode, "postafile" ) );
       encoding = XMLHandler.getTagValue( stepnode, "encoding" );
@@ -451,7 +451,7 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
       urlField = XMLHandler.getTagValue( stepnode, "urlField" );
       requestEntity = XMLHandler.getTagValue( stepnode, "requestEntity" );
       httpLogin = XMLHandler.getTagValue( stepnode, "httpLogin" );
-      httpPassword = XMLHandler.getTagValue( stepnode, "httpPassword" );
+      httpPassword = Encr.decryptPasswordOptionallyEncrypted( XMLHandler.getTagValue( stepnode, "httpPassword" ) );
       proxyHost = XMLHandler.getTagValue( stepnode, "proxyHost" );
       proxyPort = XMLHandler.getTagValue( stepnode, "proxyPort" );
 
@@ -488,8 +488,7 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       postafile = rep.getStepAttributeBoolean( id_step, "postafile" );
       encoding = rep.getStepAttributeString( id_step, "encoding" );
@@ -498,7 +497,8 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
       urlField = rep.getStepAttributeString( id_step, "urlField" );
       requestEntity = rep.getStepAttributeString( id_step, "requestEntity" );
       httpLogin = rep.getStepAttributeString( id_step, "httpLogin" );
-      httpPassword = rep.getStepAttributeString( id_step, "httpPassword" );
+      httpPassword =
+        Encr.decryptPasswordOptionallyEncrypted( rep.getStepAttributeString( id_step, "httpPassword" ) );
       proxyHost = rep.getStepAttributeString( id_step, "proxyHost" );
       proxyPort = rep.getStepAttributeString( id_step, "proxyPort" );
       socketTimeout = rep.getStepAttributeString( id_step, "socketTimeout" );
@@ -531,8 +531,7 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveStepAttribute( id_transformation, id_step, "postafile", postafile );
       rep.saveStepAttribute( id_transformation, id_step, "encoding", encoding );
@@ -541,7 +540,8 @@ public class HTTPPOSTMeta extends BaseStepMeta implements StepMetaInterface {
       rep.saveStepAttribute( id_transformation, id_step, "urlField", urlField );
       rep.saveStepAttribute( id_transformation, id_step, "requestEntity", requestEntity );
       rep.saveStepAttribute( id_transformation, id_step, "httpLogin", httpLogin );
-      rep.saveStepAttribute( id_transformation, id_step, "httpPassword", httpPassword );
+      rep.saveStepAttribute( id_transformation, id_step, "httpPassword", Encr
+        .encryptPasswordIfNotUsingVariables( httpPassword ) );
       rep.saveStepAttribute( id_transformation, id_step, "proxyHost", proxyHost );
       rep.saveStepAttribute( id_transformation, id_step, "proxyPort", proxyPort );
 

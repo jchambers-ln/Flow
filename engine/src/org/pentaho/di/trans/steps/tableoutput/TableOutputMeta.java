@@ -49,6 +49,7 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
+import org.pentaho.di.trans.step.StepInjectionMetaEntry;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
@@ -243,8 +244,7 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
     fieldDatabase = new String[nrRows];
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -284,8 +284,8 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
   }
 
   /**
-   * @return Returns the commitSize.
-   */
+  * @return Returns the commitSize.
+  */
   public String getCommitSize() {
     return commitSize;
   }
@@ -402,8 +402,7 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
     return useBatchUpdate;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       String con = XMLHandler.getTagValue( stepnode, "connection" );
       databaseMeta = DatabaseMeta.findDatabase( databases, con );
@@ -498,17 +497,12 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       databaseMeta = rep.loadDatabaseMetaFromStepAttribute( id_step, "id_connection", databases );
       schemaName = rep.getStepAttributeString( id_step, "schema" );
       tableName = rep.getStepAttributeString( id_step, "table" );
-      long commitSizeInt = rep.getStepAttributeInteger( id_step, "commit" );
       commitSize = rep.getStepAttributeString( id_step, "commit" );
-      if ( Const.isEmpty( commitSize ) ) {
-        commitSize = Long.toString( commitSizeInt );
-      }
       truncateTable = rep.getStepAttributeBoolean( id_step, "truncate" );
       ignoreErrors = rep.getStepAttributeBoolean( id_step, "ignore_errors" );
       useBatchUpdate = rep.getStepAttributeBoolean( id_step, "use_batch" );
@@ -541,8 +535,7 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveDatabaseMetaStepAttribute( id_transformation, id_step, "id_connection", databaseMeta );
       rep.saveStepAttribute( id_transformation, id_step, "schema", schemaName );
@@ -963,6 +956,15 @@ public class TableOutputMeta extends BaseStepMeta implements StepMetaInterface,
   public String getMissingDatabaseConnectionInformationMessage() {
     // Use default connection missing message
     return null;
+  }
+
+  @Override
+  public TableOutputMetaInjection getStepMetaInjectionInterface() {
+    return new TableOutputMetaInjection( this );
+  }
+
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException {
+    return getStepMetaInjectionInterface().extractStepMetadataEntries();
   }
 
 }

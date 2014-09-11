@@ -22,8 +22,6 @@
 
 package org.pentaho.di.trans.steps.janino;
 
-import java.util.List;
-
 import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
 import org.pentaho.di.core.Const;
@@ -43,11 +41,14 @@ import org.pentaho.di.trans.Trans;
 import org.pentaho.di.trans.TransMeta;
 import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
+import org.pentaho.di.trans.step.StepInjectionMetaEntry;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
+
+import java.util.List;
 
 /**
  * Contains the meta-data for the Formula step: calculates ad-hoc formula's Powered by Pentaho's "libformula"
@@ -77,8 +78,7 @@ public class JaninoMeta extends BaseStepMeta implements StepMetaInterface {
     formula = new JaninoMetaFunction[nrCalcs];
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     int nrCalcs = XMLHandler.countNodes( stepnode, JaninoMetaFunction.XML_TAG );
     allocate( nrCalcs );
     for ( int i = 0; i < nrCalcs; i++ ) {
@@ -126,8 +126,7 @@ public class JaninoMeta extends BaseStepMeta implements StepMetaInterface {
     formula = new JaninoMetaFunction[0];
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     int nrCalcs = rep.countNrStepAttributes( id_step, "field_name" );
     allocate( nrCalcs );
     for ( int i = 0; i < nrCalcs; i++ ) {
@@ -135,8 +134,7 @@ public class JaninoMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     for ( int i = 0; i < formula.length; i++ ) {
       formula[i].saveRep( rep, metaStore, id_transformation, id_step, i );
     }
@@ -235,6 +233,15 @@ public class JaninoMeta extends BaseStepMeta implements StepMetaInterface {
 
   public boolean supportsErrorHandling() {
     return true;
+  }
+
+  @Override
+  public JaninoMetaInjection getStepMetaInjectionInterface() {
+    return new JaninoMetaInjection( this );
+  }
+
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException {
+    return getStepMetaInjectionInterface().extractStepMetadataEntries();
   }
 
 }

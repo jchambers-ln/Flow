@@ -25,6 +25,7 @@ package org.pentaho.di.trans;
 
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -48,6 +49,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.vfs.FileName;
 import org.apache.commons.vfs.FileObject;
 import org.pentaho.di.cluster.SlaveServer;
@@ -260,6 +262,9 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
   /** Constant indicating a transformation status of Finished. */
   public static final String STRING_FINISHED = "Finished";
 
+  /** Constant indicating a transformation status of Finished (with errors). */
+  public static final String STRING_FINISHED_WITH_ERRORS = "Finished (with errors)";
+
   /** Constant indicating a transformation status of Running. */
   public static final String STRING_RUNNING = "Running";
 
@@ -295,7 +300,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
   private String transactionId;
 
   /** Whether the transformation is preparing for execution. */
-  private boolean preparing;
+  private volatile boolean preparing;
 
   /** Whether the transformation is initializing. */
   private boolean initializing;
@@ -392,7 +397,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
    */
   protected Hashtable<String, Counter> counters;
 
-  private HttpServletResponse servletresponse;
+  private HttpServletResponse servletResponse;
 
   private HttpServletRequest servletRequest;
 
@@ -540,8 +545,8 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
    * loading a transformation from a file (if the filename is provided but not a repository object) or from a repository
    * (if the repository object, repository directory name, and transformation name are specified).
    *
-   * @param parentVariableSpace
-   *          the parent variable space
+   * @param parent
+   *          the parent variable space and named params
    * @param rep
    *          the repository
    * @param name
@@ -553,8 +558,8 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
    * @throws KettleException
    *           if any error occurs during loading, parsing, or creation of the transformation
    */
-  public Trans( VariableSpace parentVariableSpace, Repository rep, String name, String dirname, String filename )
-    throws KettleException {
+  public <Parent extends VariableSpace & NamedParams> Trans( Parent parent, Repository rep, String name,
+      String dirname, String filename ) throws KettleException {
     this();
     try {
       if ( rep != null ) {
@@ -569,12 +574,15 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
         transMeta = new TransMeta( filename, false );
       }
 
-      this.log = new LogChannel( this );
+      this.log = LogChannel.GENERAL;
 
-      transMeta.initializeVariablesFrom( parentVariableSpace );
-      initializeVariablesFrom( parentVariableSpace );
-      transMeta.copyParametersFrom( this );
-      transMeta.activateParameters();
+      transMeta.initializeVariablesFrom( parent );
+      initializeVariablesFrom( parent );
+      // PDI-3064 do not erase parameters from meta!
+      // instead of this - copy parameters to actual transformation
+      this.copyParametersFrom( parent );
+      this.activateParameters();
+
       this.setDefaultLogCommitSize();
 
       // Get a valid transactionId in case we run database transactional.
@@ -670,7 +678,16 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
     // folks want to test it locally...
     //
     if ( servletPrintWriter == null ) {
-      servletPrintWriter = new PrintWriter( new OutputStreamWriter( System.out ) );
+      String encoding = System.getProperty( "KETTLE_DEFAULT_SERVLET_ENCODING", null );
+      if ( encoding == null ) {
+        servletPrintWriter = new PrintWriter( new OutputStreamWriter( System.out ) );
+      } else {
+        try {
+          servletPrintWriter = new PrintWriter( new OutputStreamWriter( System.out, encoding ) );
+        } catch ( UnsupportedEncodingException ex ) {
+          servletPrintWriter = new PrintWriter( new OutputStreamWriter( System.out ) );
+        }
+      }
     }
 
     // Keep track of all the row sets and allocated steps
@@ -716,14 +733,20 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
           // This can only happen if a variable is used that didn't resolve to a positive integer value
           //
           throw new KettleException( BaseMessages.getString(
-            PKG, "Trans.Log.StepCopiesNotCorrectlyDefined", thisStep.getCopiesString(), thisStep.getName() ) );
+            PKG, "Trans.Log.StepCopiesNotCorrectlyDefined", thisStep.getName() ) );
         }
 
         // How many times do we start the target step?
         int nextCopies = nextStep.getCopies();
 
         // Are we re-partitioning?
-        boolean repartitioning = !thisStep.isPartitioned() && nextStep.isPartitioned();
+        boolean repartitioning;
+        if ( thisStep.isPartitioned() ) {
+          repartitioning = !thisStep.getStepPartitioningMeta()
+              .equals( nextStep.getStepPartitioningMeta() );
+        } else {
+          repartitioning = nextStep.isPartitioned();
+        }
 
         int nrCopies;
         if ( log.isDetailed() ) {
@@ -1214,8 +1237,8 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
             //
             if ( step.getErrors() > 0 ) {
 
-              log.logMinimal( getName(), BaseMessages.getString( PKG, "Trans.Log.TransformationDetectedErrors" ) );
-              log.logMinimal( getName(), BaseMessages.getString(
+              log.logMinimal( BaseMessages.getString( PKG, "Trans.Log.TransformationDetectedErrors" ) );
+              log.logMinimal( BaseMessages.getString(
                 PKG, "Trans.Log.TransformationIsKillingTheOtherSteps" ) );
 
               killAllNoWait();
@@ -1269,7 +1292,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
       public void transFinished( Trans trans ) {
 
         try {
-          ExtensionPointHandler.callExtensionPoint( log, KettleExtensionPoint.TransformationFinish.id, this );
+          ExtensionPointHandler.callExtensionPoint( log, KettleExtensionPoint.TransformationFinish.id, trans );
         } catch ( KettleException e ) {
           throw new RuntimeException( "Error calling extension point at end of transformation", e );
         }
@@ -1428,13 +1451,13 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
 
   /**
    * Make attempt to fire all registered listeners if possible.
-   * 
+   *
    * @throws KettleException
    *           if any errors occur during notification
    */
   protected void fireTransFinishedListeners() throws KettleException {
     // PDI-5229 sync added
-    synchronized  ( transListeners ) {
+    synchronized ( transListeners ) {
       if ( transListeners.size() == 0 ) {
         return;
       }
@@ -1636,6 +1659,10 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
 
   private void setFinished( boolean newValue ) {
     finished.set( newValue );
+  }
+
+  public boolean isFinishedOrStopped() {
+    return isFinished() || isStopped();
   }
 
   /**
@@ -2663,7 +2690,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
         }
       } catch ( KettleDatabaseException e ) {
         // PDI-9790 error write to log db is transaction error
-        log.logError(BaseMessages.getString( PKG, "Database.Error.WriteLogTable", logTable ), e );
+        log.logError( BaseMessages.getString( PKG, "Database.Error.WriteLogTable", logTable ), e );
         errors.incrementAndGet();
         //end PDI-9790
       } catch ( Exception e ) {
@@ -3766,13 +3793,15 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
           }
         }
       }
+    } catch ( KettleException ke ) {
+      throw ke;
     } catch ( Exception e ) {
       throw new KettleException( "There was an error during transformation split", e );
     }
   }
 
   /**
-   * Monitors a clustered transformation every second, 
+   * Monitors a clustered transformation every second,
    * after all the transformations in a cluster schema are running.<br>
    * Now we should verify that they are all running as they should.<br>
    * If a transformation has an error, we should kill them all.<br>
@@ -3796,7 +3825,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
   }
 
   /**
-   * Monitors a clustered transformation every second, 
+   * Monitors a clustered transformation every second,
    * after all the transformations in a cluster schema are running.<br>
    * Now we should verify that they are all running as they should.<br>
    * If a transformation has an error, we should kill them all.<br>
@@ -4250,10 +4279,11 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
       }
 
       return carteObjectId;
+    } catch ( KettleException ke ) {
+      throw ke;
     } catch ( Exception e ) {
       throw new KettleException( e );
     }
-
   }
 
   /**
@@ -4344,8 +4374,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
     return variables.environmentSubstitute( aString );
   }
 
-  public String fieldSubstitute( String aString, RowMetaInterface rowMeta, Object[] rowData )
-    throws KettleValueException {
+  public String fieldSubstitute( String aString, RowMetaInterface rowMeta, Object[] rowData ) throws KettleValueException {
     return variables.fieldSubstitute( aString, rowMeta, rowData );
   }
 
@@ -4523,6 +4552,15 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
    * @return the repository
    */
   public Repository getRepository() {
+
+    if ( repository == null ) {
+      // Does the transmeta have a repo?
+      // This is a valid case, when a non-repo trans is attempting to retrieve
+      // a transformation in the repository.
+      if ( transMeta != null ) {
+        return transMeta.getRepository();
+      }
+    }
     return repository;
   }
 
@@ -4559,7 +4597,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
   }
 
   /**
-   * Gets a list of the transformation listeners. 
+   * Gets a list of the transformation listeners.
    * Please do not attempt to modify this list externally.
    * Returned list is mutable only for backward compatibility purposes.
    *
@@ -4751,8 +4789,7 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
    * @see org.pentaho.di.core.parameters.NamedParams#addParameterDefinition(java.lang.String, java.lang.String,
    *      java.lang.String)
    */
-  public void addParameterDefinition( String key, String defValue, String description )
-    throws DuplicateParamException {
+  public void addParameterDefinition( String key, String defValue, String description ) throws DuplicateParamException {
     namedParams.addParameterDefinition( key, defValue, description );
   }
 
@@ -5320,12 +5357,34 @@ public class Trans implements VariableSpace, NamedParams, HasLogChannelInterface
     }
   }
 
+
+  /**
+   * Sets encoding of HttpServletResponse according to System encoding.Check if system encoding is null or an empty and
+   * set it to HttpServletResponse when not and writes error to log if null. Throw IllegalArgumentException if input
+   * parameter is null.
+   * 
+   * @param response
+   *          the HttpServletResponse to set encoding, mayn't be null
+   */
   public void setServletReponse( HttpServletResponse response ) {
-    this.servletresponse = response;
+    if ( response == null ) {
+      throw new IllegalArgumentException( "Response is not valid: " + response );
+    }
+    String encoding = System.getProperty( "KETTLE_DEFAULT_SERVLET_ENCODING", null );
+    // true if encoding is null or an empty (also for the next kin of strings: "   ")
+    if ( !StringUtils.isBlank( encoding ) ) {
+      try {
+        response.setCharacterEncoding( encoding.trim() );
+        response.setContentType( "text/html; charset=" + encoding );
+      } catch ( Exception ex ) {
+        LogChannel.GENERAL.logError( "Unable to encode data with encoding : '" + encoding + "'", ex );
+      }
+    }
+    this.servletResponse = response;
   }
 
   public HttpServletResponse getServletResponse() {
-    return servletresponse;
+    return servletResponse;
   }
 
   public void setServletRequest( HttpServletRequest request ) {

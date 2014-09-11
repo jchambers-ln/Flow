@@ -42,6 +42,9 @@ import org.eclipse.swt.widgets.Label;
 import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Shell;
 import org.pentaho.di.core.Const;
+import org.pentaho.di.core.plugins.PartitionerPluginType;
+import org.pentaho.di.core.plugins.PluginInterface;
+import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.i18n.BaseMessages;
 import org.pentaho.di.trans.ModPartitioner;
@@ -51,13 +54,13 @@ import org.pentaho.di.trans.step.StepDialogInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepPartitioningMeta;
 import org.pentaho.di.ui.core.dialog.ErrorDialog;
+import org.pentaho.di.ui.core.gui.GUIResource;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
 
 public class ModPartitionerDialog extends BaseStepDialog implements StepDialogInterface {
   private static Class<?> PKG = TransDialog.class; // for i18n purposes, needed by Translator2!!
 
   private StepPartitioningMeta partitioningMeta;
-  private StepMeta stepMeta;
   private ModPartitioner partitioner;
   private String fieldName;
 
@@ -66,7 +69,7 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
   private FormData fdlFieldname, fdFieldname;
 
   public ModPartitionerDialog( Shell parent, StepMeta stepMeta, StepPartitioningMeta partitioningMeta,
-    TransMeta transMeta ) {
+                               TransMeta transMeta ) {
     super( parent, (BaseStepMeta) stepMeta.getStepMetaInterface(), transMeta, partitioningMeta
       .getPartitioner().getDescription() );
     this.stepMeta = stepMeta;
@@ -81,7 +84,7 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
 
     shell = new Shell( parent, SWT.DIALOG_TRIM | SWT.RESIZE | SWT.MIN | SWT.MAX );
     props.setLook( shell );
-    setShellImage( shell, stepMeta.getStepMetaInterface() );
+    setShellImage( shell );
 
     ModifyListener lsMod = new ModifyListener() {
       public void modifyText( ModifyEvent e ) {
@@ -118,6 +121,16 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
     fdFieldname.top = new FormAttachment( 0, margin );
     fdFieldname.right = new FormAttachment( 100, 0 );
     wFieldname.setLayoutData( fdFieldname );
+    wFieldname.addSelectionListener( new SelectionAdapter() {
+      @Override
+      public void widgetSelected( SelectionEvent e ) {
+        if ( wFieldname.getSelectionIndex() < 0 ) {
+          wOK.setEnabled( false );
+        } else {
+          wOK.setEnabled( true );
+        }
+      }
+    } );
 
     try {
       RowMetaInterface inputFields = transMeta.getPrevStepFields( stepMeta );
@@ -125,6 +138,7 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
         String[] fieldNames = inputFields.getFieldNames();
         Arrays.sort( fieldNames );
         wFieldname.setItems( fieldNames );
+
       }
     } catch ( Exception e ) {
       new ErrorDialog( shell, "Error", "Error obtaining list of input fields:", e );
@@ -173,7 +187,9 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
     partitioningMeta.hasChanged( changed );
 
     setSize();
-
+    if ( wFieldname.getSelectionIndex() < 0 ) {
+      wOK.setEnabled( false );
+    }
     shell.open();
     while ( !shell.isDisposed() ) {
       if ( !display.readAndDispatch() ) {
@@ -200,5 +216,14 @@ public class ModPartitionerDialog extends BaseStepDialog implements StepDialogIn
     fieldName = wFieldname.getText();
     partitioner.setFieldName( fieldName );
     dispose();
+  }
+
+  private void setShellImage( Shell shell ) {
+    PluginInterface plugin = PluginRegistry.getInstance().getPlugin( PartitionerPluginType.class, partitioner.getId() );
+    if ( !Const.isEmpty( plugin.getDocumentationUrl() ) ) {
+      createHelpButton( shell, stepMeta, plugin );
+    }
+
+    shell.setImage( GUIResource.getInstance().getImageSpoon() );
   }
 }

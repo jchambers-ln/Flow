@@ -117,11 +117,7 @@ public class GPLoad extends BaseStep implements StepInterface {
 
   }
 
-  public GPLoad( StepMeta stepMeta,
-                 StepDataInterface stepDataInterface,
-                 int copyNr,
-                 TransMeta transMeta,
-                 Trans trans ) {
+  public GPLoad( StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr, TransMeta transMeta, Trans trans ) {
     super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
   }
 
@@ -424,6 +420,7 @@ public class GPLoad extends BaseStep implements StepInterface {
           fw.close();
         }
       } catch ( Exception ignored ) {
+        // Ignore error
       }
     }
   }
@@ -480,8 +477,7 @@ public class GPLoad extends BaseStep implements StepInterface {
         return KettleVFS.getFilename( fileObject );
       }
     } catch ( FileSystemException fsex ) {
-      throw new KettleException( BaseMessages.getString( PKG,
-              "GPLoad.Exception.GPLoadCommandBuild", fsex.getMessage() ) );
+      throw new KettleException( BaseMessages.getString( PKG, "GPLoad.Exception.GPLoadCommandBuild", fsex.getMessage() ) );
     }
   }
 
@@ -552,8 +548,7 @@ public class GPLoad extends BaseStep implements StepInterface {
         gpLoadExitVal = gploadProcess.waitFor();
         logBasic( BaseMessages.getString( PKG, "GPLoad.Log.ExitValuePsqlPath", "" + gpLoadExitVal ) );
         if ( gpLoadExitVal != -0 ) {
-          throw new KettleException( BaseMessages.getString( PKG,
-                  "GPLoad.Log.ExitValuePsqlPath", "" + gpLoadExitVal ) );
+          throw new KettleException( BaseMessages.getString( PKG, "GPLoad.Log.ExitValuePsqlPath", "" + gpLoadExitVal ) );
         }
       }
     } catch ( KettleException ke ) {
@@ -607,11 +602,9 @@ public class GPLoad extends BaseStep implements StepInterface {
 
             // we create the control file but do not execute
             createControlFile( meta );
-            logBasic( BaseMessages.getString( PKG,
-                    "GPLoad.Info.MethodManual" ) );
+            logBasic( BaseMessages.getString( PKG, "GPLoad.Info.MethodManual" ) );
           } else {
-            throw new KettleException( BaseMessages.getString( PKG,
-                    "GPload.Execption.UnhandledLoadMethod", loadMethod ) );
+            throw new KettleException( BaseMessages.getString( PKG, "GPload.Execption.UnhandledLoadMethod", loadMethod ) );
           }
         }
         return false;
@@ -670,16 +663,14 @@ public class GPLoad extends BaseStep implements StepInterface {
       FileObject fileObject = null;
 
       String method = meta.getLoadMethod();
-      if ( // GPLoadMeta.METHOD_AUTO_CONCURRENT.equals(method) ||
-      GPLoadMeta.METHOD_AUTO_END.equals( method ) ) {
+      if ( GPLoadMeta.METHOD_AUTO_END.equals( method ) ) {
         if ( meta.getControlFile() != null ) {
           try {
             fileObject = KettleVFS.getFileObject( environmentSubstitute( meta.getControlFile() ), getTransMeta() );
             fileObject.delete();
             fileObject.close();
           } catch ( Exception ex ) {
-            logError( "Error deleting control file \'"
-                    + KettleVFS.getFilename( fileObject ) + "\': " + ex.getMessage() );
+            logError( "Error deleting control file \'" + KettleVFS.getFilename( fileObject ) + "\': " + ex.getMessage() );
           }
         }
       }

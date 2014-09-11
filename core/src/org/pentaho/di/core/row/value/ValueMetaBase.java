@@ -37,6 +37,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
+import java.sql.Types;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.text.NumberFormat;
@@ -54,8 +55,10 @@ import org.pentaho.di.core.database.DatabaseInterface;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.database.GreenplumDatabaseMeta;
 import org.pentaho.di.core.database.MySQLDatabaseMeta;
+import org.pentaho.di.core.database.NetezzaDatabaseMeta;
 import org.pentaho.di.core.database.OracleDatabaseMeta;
 import org.pentaho.di.core.database.PostgreSQLDatabaseMeta;
+import org.pentaho.di.core.database.SQLiteDatabaseMeta;
 import org.pentaho.di.core.database.TeradataDatabaseMeta;
 import org.pentaho.di.core.exception.KettleDatabaseException;
 import org.pentaho.di.core.exception.KettleEOFException;
@@ -79,6 +82,9 @@ public class ValueMetaBase implements ValueMetaInterface {
 
   public static final String DEFAULT_DATE_FORMAT_MASK = Const.NVL( EnvUtil
     .getSystemProperty( Const.KETTLE_DEFAULT_DATE_FORMAT ), "yyyy/MM/dd HH:mm:ss.SSS" );
+
+  public static final String DEFAULT_TIMESTAMP_FORMAT_MASK = Const.NVL( EnvUtil
+    .getSystemProperty( Const.KETTLE_DEFAULT_TIMESTAMP_FORMAT ), "yyyy/MM/dd HH:mm:ss.SSSSSSSSS" );
 
   public static final String XML_META_TAG = "value-meta";
   public static final String XML_DATA_TAG = "value-data";
@@ -190,7 +196,6 @@ public class ValueMetaBase implements ValueMetaInterface {
     this.ignoreTimezone =
       convertStringToBoolean( Const.NVL( System.getProperty(
         Const.KETTLE_COMPATIBILITY_DB_IGNORE_TIMEZONE, "N" ), "N" ) );
-
 
     determineSingleByteEncoding();
     setDefaultConversionMask();
@@ -1015,7 +1020,21 @@ public class ValueMetaBase implements ValueMetaInterface {
     }
 
     try {
-      return new Long( getDecimalFormat( false ).parse( string ).longValue() );
+      Number number;
+      if ( lenientStringToNumber ) {
+        number = new Long( getDecimalFormat( false ).parse( string ).longValue() );
+      } else {
+        ParsePosition parsePosition = new ParsePosition( 0 );
+        number = getDecimalFormat( false ).parse( string, parsePosition );
+
+        if ( parsePosition.getIndex() < string.length() ) {
+          throw new KettleValueException( toString()
+            + " : couldn't convert String to number : non-numeric character found at position "
+            + ( parsePosition.getIndex() + 1 ) + " for value [" + string + "]" );
+        }
+
+      }
+      return new Long( number.longValue() );
     } catch ( Exception e ) {
       throw new KettleValueException( toString() + " : couldn't convert String to Integer", e );
     }
@@ -1043,7 +1062,20 @@ public class ValueMetaBase implements ValueMetaInterface {
     }
 
     try {
-      return (BigDecimal) getDecimalFormat( bigNumberFormatting ).parse( string );
+      Number number;
+      if ( lenientStringToNumber ) {
+        number = getDecimalFormat( bigNumberFormatting ).parse( string );
+      } else {
+        ParsePosition parsePosition = new ParsePosition( 0 );
+        number = getDecimalFormat( bigNumberFormatting ).parse( string, parsePosition );
+
+        if ( parsePosition.getIndex() < string.length() ) {
+          throw new KettleValueException( toString()
+            + " : couldn't convert String to number : non-numeric character found at position "
+            + ( parsePosition.getIndex() + 1 ) + " for value [" + string + "]" );
+        }
+      }
+      return (BigDecimal) number;
     } catch ( Exception e ) {
       // We added this workaround for PDI-1824
       //
@@ -3626,7 +3658,7 @@ public class ValueMetaBase implements ValueMetaInterface {
    *           in case there is a conversion error.
    */
   @Override
-  public Object convertDataUsingConversionMetaData( Object data2 ) throws KettleValueException {
+  public Object convertDataUsingConversionMetaData( Object data ) throws KettleValueException {
     if ( conversionMetadata == null ) {
       throw new KettleValueException(
         "API coding error: please specify the conversion metadata before attempting to convert value " + name );
@@ -3642,19 +3674,19 @@ public class ValueMetaBase implements ValueMetaInterface {
 
     switch ( conversionMetadata.getType() ) {
       case TYPE_STRING:
-        return getString( data2 );
+        return getString( data );
       case TYPE_INTEGER:
-        return getInteger( data2 );
+        return getInteger( data );
       case TYPE_NUMBER:
-        return getNumber( data2 );
+        return getNumber( data );
       case TYPE_DATE:
-        return getDate( data2 );
+        return getDate( data );
       case TYPE_BIGNUMBER:
-        return getBigNumber( data2 );
+        return getBigNumber( data );
       case TYPE_BOOLEAN:
-        return getBoolean( data2 );
+        return getBoolean( data );
       case TYPE_BINARY:
-        return getBinary( data2 );
+        return getBinary( data );
       default:
         throw new KettleValueException( toString()
           + " : I can't convert the specified value to data type : " + storageMetadata.getType() );
@@ -4363,8 +4395,7 @@ public class ValueMetaBase implements ValueMetaInterface {
   @SuppressWarnings( "fallthrough" )
   @Override
   public ValueMetaInterface getValueFromSQLType( DatabaseMeta databaseMeta, String name,
-    java.sql.ResultSetMetaData rm, int index, boolean ignoreLength, boolean lazyConversion )
-    throws KettleDatabaseException {
+    java.sql.ResultSetMetaData rm, int index, boolean ignoreLength, boolean lazyConversion ) throws KettleDatabaseException {
     try {
       int length = -1;
       int precision = -1;
@@ -4556,6 +4587,8 @@ public class ValueMetaBase implements ValueMetaInterface {
             // PDI-6677 - don't call 'length = rm.getColumnDisplaySize(index);'
             length = -1; // keep the length to -1, e.g. for string functions (e.g.
                          // CONCAT see PDI-4812)
+          } else if ( databaseMeta.getDatabaseInterface() instanceof SQLiteDatabaseMeta ) {
+            valtype = ValueMetaInterface.TYPE_STRING;
           } else {
             length = -1;
           }
@@ -4650,8 +4683,7 @@ public class ValueMetaBase implements ValueMetaInterface {
    *           in case something goes wrong.
    */
   @Override
-  public Object getValueFromResultSet( DatabaseInterface databaseInterface, ResultSet resultSet, int index )
-    throws KettleDatabaseException {
+  public Object getValueFromResultSet( DatabaseInterface databaseInterface, ResultSet resultSet, int index ) throws KettleDatabaseException {
     try {
       Object data = null;
 
@@ -4692,11 +4724,14 @@ public class ValueMetaBase implements ValueMetaInterface {
           if ( getPrecision() != 1 && databaseInterface.supportsTimeStampToDateConversion() ) {
             data = resultSet.getTimestamp( index + 1 );
             break; // Timestamp extends java.util.Date
+          } else if ( databaseInterface instanceof NetezzaDatabaseMeta ) {
+            // PDI-10877 workaround for IBM netezza jdbc 'special' implementation
+            data = getNetezzaDateValueWorkaround( databaseInterface, resultSet, index + 1 );
+            break;
           } else {
             data = resultSet.getDate( index + 1 );
             break;
           }
-
         default:
           break;
       }
@@ -4709,6 +4744,22 @@ public class ValueMetaBase implements ValueMetaInterface {
         + toStringMeta() + "' from database resultset, index " + index, e );
     }
 
+  }
+
+  // PDI-10877
+  private Object getNetezzaDateValueWorkaround( DatabaseInterface databaseInterface, ResultSet resultSet, int index ) throws SQLException, KettleDatabaseException {
+    Object data = null;
+    int type = resultSet.getMetaData().getColumnType( index );
+    switch ( type ) {
+      case Types.TIME: {
+        data = resultSet.getTime( index );
+        break;
+      }
+      default: {
+        data = resultSet.getDate( index );
+      }
+    }
+    return data;
   }
 
   @Override
@@ -4888,8 +4939,7 @@ public class ValueMetaBase implements ValueMetaInterface {
         if ( curPos >= 0 && curPos < stopPos ) {
           quotes++;
         }
-      }
-      while( curPos >= 0 && curPos < stopPos );
+      } while ( curPos >= 0 && curPos < stopPos );
     }
     return quotes;
   }

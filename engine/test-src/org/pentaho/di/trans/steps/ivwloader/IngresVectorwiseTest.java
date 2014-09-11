@@ -37,7 +37,6 @@ import java.util.List;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.mockito.InjectMocks;
 import org.pentaho.di.core.Const;
 import org.pentaho.di.core.RowSet;
 import org.pentaho.di.core.database.DatabaseMeta;
@@ -60,10 +59,10 @@ import org.pentaho.di.trans.steps.mock.StepMockHelper;
 public class IngresVectorwiseTest {
 
   private class IngresVectorwiseLoaderTest extends IngresVectorwiseLoader {
-    public List<Throwable> errors = new ArrayList<Throwable>();
+    // public List<Throwable> errors = new ArrayList<Throwable>();
 
     public IngresVectorwiseLoaderTest( StepMeta stepMeta, StepDataInterface stepDataInterface, int copyNr,
-        TransMeta transMeta, Trans trans ) {
+      TransMeta transMeta, Trans trans ) {
       super( stepMeta, stepDataInterface, copyNr, transMeta, trans );
     }
 
@@ -82,20 +81,10 @@ public class IngresVectorwiseTest {
       String bufferSizeString = environmentSubstitute( meta.getBufferSize() );
       int bufferSize = Const.isEmpty( bufferSizeString ) ? 5000 : Const.toInt( bufferSizeString, 5000 );
 
-      Class vwload = VWLoadMocker.class;
-      StringBuilder cmd = new StringBuilder();
-      cmd.append( "java -cp . -Duser.dir=" );
-      cmd.append( vwload.getProtectionDomain().getCodeSource().getLocation().getPath() );
-      cmd.append( ' ' );
-      cmd.append( vwload.getCanonicalName() );
-      cmd.append( ' ' );
-      cmd.append( bufferSize );
-      cmd.append( ' ' );
-      cmd.append( meta.getMaxNrErrors() );
-      cmd.append( ' ' );
-      cmd.append( meta.getErrorFileName() );
+      Class<?> vwload = VWLoadMocker.class;
 
-      return cmd.toString();
+      return "java -cp . -Duser.dir=" + vwload.getProtectionDomain().getCodeSource().getLocation().getPath() + ' '
+        + vwload.getCanonicalName() + ' ' + bufferSize + ' ' + meta.getMaxNrErrors() + ' ' + meta.getErrorFileName();
 
     }
   }
@@ -104,9 +93,6 @@ public class IngresVectorwiseTest {
   private static final String IVW_TEMP_EXTENSION = ".txt";
   private String lineSeparator = System.getProperty( "line.separator" );
 
-  @InjectMocks
-  private IngresVectorwiseLoaderTest ivwLoader;
-  private IngresVectorwiseLoaderData ivwData;
   private static StepMockHelper<IngresVectorwiseLoaderMeta, IngresVectorwiseLoaderData> stepMockHelper;
   private String[] fieldStream = new String[] { "Number data", "String data" };
   private Object[] row = new Object[] { 1L, "another data" };
@@ -130,8 +116,8 @@ public class IngresVectorwiseTest {
   @BeforeClass
   public static void setUp() throws Exception {
     stepMockHelper =
-        new StepMockHelper<IngresVectorwiseLoaderMeta, IngresVectorwiseLoaderData>( "INGRES_VECTORWISE_TEST",
-            IngresVectorwiseLoaderMeta.class, IngresVectorwiseLoaderData.class );
+      new StepMockHelper<IngresVectorwiseLoaderMeta, IngresVectorwiseLoaderData>( "INGRES_VECTORWISE_TEST",
+        IngresVectorwiseLoaderMeta.class, IngresVectorwiseLoaderData.class );
     stepMockHelper.redirectLog( System.out, LogLevel.ROWLEVEL );
     when( stepMockHelper.trans.isRunning() ).thenReturn( true );
   }
@@ -195,11 +181,27 @@ public class IngresVectorwiseTest {
     }
   }
 
+  @Test
+  public void testWaitForFinish() {
+    try {
+      int r = rows.size();
+      BaseStep step = doOutput( wrongRows, "2" );
+      assertEquals( r - 1, step.getLinesOutput() );
+      assertEquals( r, step.getLinesRead() );
+      assertEquals( r, step.getLinesWritten() );
+      assertEquals( 1, step.getLinesRejected() );
+      assertEquals( 0, step.getErrors() );
+
+    } catch ( KettleException e ) {
+      fail( e.getMessage() );
+    }
+  }
+
   // @Test
   public void testVWLoadMocker() {
     String cmd =
-        "java -cp . -Duser.dir=" + VWLoadMocker.class.getProtectionDomain().getCodeSource().getLocation().getPath()
-            + " org.pentaho.di.trans.steps.ivwloader.VWLoadMocker 5000 0 /tmp/error.txt";
+      "java -cp . -Duser.dir=" + VWLoadMocker.class.getProtectionDomain().getCodeSource().getLocation().getPath()
+        + " org.pentaho.di.trans.steps.ivwloader.VWLoadMocker 5000 0 /tmp/error.txt";
     // String cmd ="java -version";
 
     try {
@@ -229,12 +231,13 @@ public class IngresVectorwiseTest {
     return f;
   }
 
+  @SuppressWarnings( "unused" )
   private BaseStep doOutput( List<Object[]> rows, String maxErrorsNumber ) throws KettleException {
 
-    ivwData = new IngresVectorwiseLoaderData();
-    ivwLoader =
-        new IngresVectorwiseLoaderTest( stepMockHelper.stepMeta, ivwData, 0, stepMockHelper.transMeta,
-            stepMockHelper.trans );
+    IngresVectorwiseLoaderData ivwData = new IngresVectorwiseLoaderData();
+    IngresVectorwiseLoaderTest ivwLoader =
+      new IngresVectorwiseLoaderTest( stepMockHelper.stepMeta, ivwData, 0, stepMockHelper.transMeta,
+        stepMockHelper.trans );
 
     DatabaseMeta defMeta = mock( DatabaseMeta.class );
     when( stepMockHelper.processRowsStepMetaInterface.getDatabaseMeta() ).thenReturn( defMeta );
@@ -253,7 +256,7 @@ public class IngresVectorwiseTest {
     try {
       errorFile = createTemplateFile();
       fifoFile = createTemplateFile();
-      fifoFile.delete();
+      boolean deleted  = fifoFile.delete();
     } catch ( IOException e ) {
       e.printStackTrace();
     }

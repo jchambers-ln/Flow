@@ -123,8 +123,7 @@ public interface Repository {
   public boolean exists( String name, RepositoryDirectoryInterface repositoryDirectory,
     RepositoryObjectType objectType ) throws KettleException;
 
-  public ObjectId getTransformationID( String name, RepositoryDirectoryInterface repositoryDirectory )
-    throws KettleException;
+  public ObjectId getTransformationID( String name, RepositoryDirectoryInterface repositoryDirectory ) throws KettleException;
 
   public ObjectId getJobId( String name, RepositoryDirectoryInterface repositoryDirectory ) throws KettleException;
 
@@ -163,8 +162,7 @@ public interface Repository {
   public void save( RepositoryElementInterface repositoryElement, String versionComment, Calendar versionDate,
     ProgressMonitorListener monitor, boolean overwrite ) throws KettleException;
 
-  public RepositoryDirectoryInterface getDefaultSaveDirectory( RepositoryElementInterface repositoryElement )
-    throws KettleException;
+  public RepositoryDirectoryInterface getDefaultSaveDirectory( RepositoryElementInterface repositoryElement ) throws KettleException;
 
   public RepositoryDirectoryInterface getUserHomeDirectory() throws KettleException;
 
@@ -222,6 +220,24 @@ public interface Repository {
     String newName ) throws KettleException;
 
   /**
+   * Move / rename a transformation
+   *
+   * @param id_transformation
+   *          The ObjectId of the transformation to move
+   * @param versionComment
+   *          Version comment for rename
+   * @param newDirectory
+   *          The RepositoryDirectoryInterface that will be the new parent of the transformation (May be null if a move
+   *          is not desired)
+   * @param newName
+   *          The new name of the transformation (May be null if a rename is not desired)
+   * @return The ObjectId of the transformation that was moved
+   * @throws KettleException
+   */
+  public ObjectId renameTransformation( ObjectId id_transformation, String versionComment,
+    RepositoryDirectoryInterface newDirectory, String newName ) throws KettleException;
+
+  /**
    * Delete everything related to a transformation from the repository. This does not included shared objects :
    * databases, slave servers, cluster and partition schema.
    *
@@ -267,6 +283,8 @@ public interface Repository {
    *
    * @param id_job
    *          The ObjectId of the job to move
+   * @param versionComment
+   *          Version comment for rename
    * @param newDirectory
    *          The RepositoryDirectoryInterface that will be the new parent of the job (May be null if a move is not
    *          desired)
@@ -275,8 +293,23 @@ public interface Repository {
    * @return The ObjectId of the job that was moved
    * @throws KettleException
    */
-  public ObjectId renameJob( ObjectId id_job, RepositoryDirectoryInterface newDirectory, String newName )
-    throws KettleException;
+  public ObjectId renameJob( ObjectId id_job, String versionComment, RepositoryDirectoryInterface newDirectory,
+    String newName ) throws KettleException;
+
+  /**
+   * Move / rename a job
+   *
+   * @param id_job
+   *          The ObjectId of the job to move
+   * @param newDirectory
+   *          The RepositoryDirectoryInterface that will be the new parent of the job (May be null if a move is not
+   *          desired)
+   * @param newName
+   *          The new name of the job (May be null if a rename is not desired)
+   * @return The ObjectId of the job that was moved
+   * @throws KettleException
+   */
+  public ObjectId renameJob( ObjectId id_job, RepositoryDirectoryInterface newDirectory, String newName ) throws KettleException;
 
   public void deleteJob( ObjectId id_job ) throws KettleException;
 
@@ -359,8 +392,7 @@ public interface Repository {
   // PartitionSchema
   // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-  public PartitionSchema loadPartitionSchema( ObjectId id_partition_schema, String versionLabel )
-    throws KettleException;
+  public PartitionSchema loadPartitionSchema( ObjectId id_partition_schema, String versionLabel ) throws KettleException;
 
   public ObjectId[] getPartitionSchemaIDs( boolean includeDeleted ) throws KettleException;
 
@@ -399,8 +431,7 @@ public interface Repository {
    * @return The ObjectId of the repository directory that was moved
    * @throws KettleException
    */
-  public ObjectId renameRepositoryDirectory( ObjectId id, RepositoryDirectoryInterface newParentDir, String newName )
-    throws KettleException;
+  public ObjectId renameRepositoryDirectory( ObjectId id, RepositoryDirectoryInterface newParentDir, String newName ) throws KettleException;
 
   /**
    * Create a new directory, possibly by creating several sub-directies of / at the same time.
@@ -418,8 +449,7 @@ public interface Repository {
 
   public String[] getTransformationNames( ObjectId id_directory, boolean includeDeleted ) throws KettleException;
 
-  public List<RepositoryElementMetaInterface> getJobObjects( ObjectId id_directory, boolean includeDeleted )
-    throws KettleException;
+  public List<RepositoryElementMetaInterface> getJobObjects( ObjectId id_directory, boolean includeDeleted ) throws KettleException;
 
   public List<RepositoryElementMetaInterface> getTransformationObjects( ObjectId id_directory,
     boolean includeDeleted ) throws KettleException;
@@ -468,11 +498,9 @@ public interface Repository {
   // Relationships between objects !!!!!!!!!!!!!!!!!!!!!! <-----------------
   // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-  public void insertStepDatabase( ObjectId id_transformation, ObjectId id_step, ObjectId id_database )
-    throws KettleException;
+  public void insertStepDatabase( ObjectId id_transformation, ObjectId id_step, ObjectId id_database ) throws KettleException;
 
-  public void insertJobEntryDatabase( ObjectId id_job, ObjectId id_jobentry, ObjectId id_database )
-    throws KettleException;
+  public void insertJobEntryDatabase( ObjectId id_job, ObjectId id_jobentry, ObjectId id_database ) throws KettleException;
 
   // ///////////////////////////////////////////////////////////////////////////////////////////////
   // Condition
@@ -502,8 +530,7 @@ public interface Repository {
   // Attributes for steps...
   // ///////////////////////////////////////////////////////////////////////////////////////////////
 
-  public boolean getStepAttributeBoolean( ObjectId id_step, int nr, String code, boolean def )
-    throws KettleException;
+  public boolean getStepAttributeBoolean( ObjectId id_step, int nr, String code, boolean def ) throws KettleException;
 
   public boolean getStepAttributeBoolean( ObjectId id_step, int nr, String code ) throws KettleException;
 
@@ -517,29 +544,21 @@ public interface Repository {
 
   public String getStepAttributeString( ObjectId id_step, String code ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, String value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, String value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, String value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, String value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, boolean value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, boolean value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, boolean value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, boolean value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, long value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, long value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, long value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, long value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, double value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, int nr, String code, double value ) throws KettleException;
 
-  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, double value )
-    throws KettleException;
+  public void saveStepAttribute( ObjectId id_transformation, ObjectId id_step, String code, double value ) throws KettleException;
 
   public int countNrStepAttributes( ObjectId id_step, String code ) throws KettleException;
 
@@ -553,8 +572,7 @@ public interface Repository {
 
   public boolean getJobEntryAttributeBoolean( ObjectId id_jobentry, int nr, String code ) throws KettleException;
 
-  public boolean getJobEntryAttributeBoolean( ObjectId id_jobentry, String code, boolean def )
-    throws KettleException;
+  public boolean getJobEntryAttributeBoolean( ObjectId id_jobentry, String code, boolean def ) throws KettleException;
 
   public long getJobEntryAttributeInteger( ObjectId id_jobentry, String code ) throws KettleException;
 
@@ -564,23 +582,17 @@ public interface Repository {
 
   public String getJobEntryAttributeString( ObjectId id_jobentry, int nr, String code ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, String value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, String value ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, String value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, String value ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, boolean value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, boolean value ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, boolean value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, boolean value ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, long value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, int nr, String code, long value ) throws KettleException;
 
-  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, long value )
-    throws KettleException;
+  public void saveJobEntryAttribute( ObjectId id_job, ObjectId id_jobentry, String code, long value ) throws KettleException;
 
   /**
    * This method is introduced to avoid having to go over an integer/string/whatever in the interface and the step code.
@@ -706,8 +718,7 @@ public interface Repository {
    * @throws KettleException
    *           In case there was a loading problem.
    */
-  public RepositoryObject getObjectInformation( ObjectId objectId, RepositoryObjectType objectType )
-    throws KettleException;
+  public RepositoryObject getObjectInformation( ObjectId objectId, RepositoryObjectType objectType ) throws KettleException;
 
   /**
    * This is an informational message that a repository can display on connecting within Spoon. If a null is returned,
@@ -734,7 +745,7 @@ public interface Repository {
   /**
    * @return the exporter that will handle exports from this repository
    */
-  public IRepositoryExporter getExporter();
+  public IRepositoryExporter getExporter() throws KettleException;
 
   /**
    * @return the Metastore that is implemented in this Repository. Return null if this repository doesn't implement a

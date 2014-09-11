@@ -32,7 +32,6 @@ import org.pentaho.di.core.Const;
 import org.pentaho.di.core.ObjectLocationSpecificationMethod;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleException;
-import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.exception.KettleXMLException;
 import org.pentaho.di.core.logging.LogChannel;
 import org.pentaho.di.core.row.RowMetaInterface;
@@ -75,13 +74,16 @@ import org.w3c.dom.Node;
 /**
  * Meta-data for the Trans Executor step.
  *
- * @since 18-mar-2013
  * @author Matt
- *
+ * @since 18-mar-2013
  */
 
 public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface, HasRepositoryInterface {
-  private static Class<?> PKG = TransExecutorMeta.class; // for i18n purposes, needed by Translator2!!
+  private static final Class<?> PKG = TransExecutorMeta.class; // for i18n purposes, needed by Translator2!!
+
+  static final String F_EXECUTION_RESULT_TARGET_STEP = "execution_result_target_step";
+  static final String F_RESULT_FILE_TARGET_STEP = "result_files_target_step";
+  static final String F_EXECUTOR_OUTPUT_STEP = "executors_output_step";
 
   private String transName;
 
@@ -93,11 +95,14 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
   private ObjectLocationSpecificationMethod specificationMethod;
 
-  /** The number of input rows that are sent as result rows to the job in one go, defaults to "1" */
+  /**
+   * The number of input rows that are sent as result rows to the job in one go, defaults to "1"
+   */
   private String groupSize;
 
-  /** Optional name of a field to group rows together that are sent 
-   * together to the job as result rows (empty default) */
+  /**
+   * Optional name of a field to group rows together that are sent together to the job as result rows (empty default)
+   */
   private String groupField;
 
   /**
@@ -113,54 +118,81 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   private StepMeta executionResultTargetStepMeta;
 
   /**
-   * The optional name of the output field that will contain the execution time of the transformation in (Integer in ms)
+   * The optional name of the output field that will contain the execution time of the transformation in (Integer in
+   * ms)
    */
   private String executionTimeField;
 
-  /** The optional name of the output field that will contain the execution result (Boolean) */
+  /**
+   * The optional name of the output field that will contain the execution result (Boolean)
+   */
   private String executionResultField;
 
-  /** The optional name of the output field that will contain the number of errors (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of errors (Integer)
+   */
   private String executionNrErrorsField;
 
-  /** The optional name of the output field that will contain the number of rows read (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows read (Integer)
+   */
   private String executionLinesReadField;
 
-  /** The optional name of the output field that will contain the number of rows written (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows written (Integer)
+   */
   private String executionLinesWrittenField;
 
-  /** The optional name of the output field that will contain the number of rows input (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows input (Integer)
+   */
   private String executionLinesInputField;
 
-  /** The optional name of the output field that will contain the number of rows output (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows output (Integer)
+   */
   private String executionLinesOutputField;
 
-  /** The optional name of the output field that will contain the number of rows rejected (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows rejected (Integer)
+   */
   private String executionLinesRejectedField;
 
-  /** The optional name of the output field that will contain the number of rows updated (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows updated (Integer)
+   */
   private String executionLinesUpdatedField;
 
-  /** The optional name of the output field that will contain the number of rows deleted (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of rows deleted (Integer)
+   */
   private String executionLinesDeletedField;
 
-  /** The optional name of the output field that will contain the number of files retrieved (Integer) */
+  /**
+   * The optional name of the output field that will contain the number of files retrieved (Integer)
+   */
   private String executionFilesRetrievedField;
 
   /**
-   * The optional name of the output field that will contain the exit status of the last executed shell script (Integer)
+   * The optional name of the output field that will contain the exit status of the last executed shell script
+   * (Integer)
    */
   private String executionExitStatusField;
 
-  /** The optional name of the output field that will contain the log text of the transformation execution (String) */
+  /**
+   * The optional name of the output field that will contain the log text of the transformation execution (String)
+   */
   private String executionLogTextField;
 
   /**
-   * The optional name of the output field that will contain the log channel ID of the transformation execution (String)
+   * The optional name of the output field that will contain the log channel ID of the transformation execution
+   * (String)
    */
   private String executionLogChannelIdField;
 
-  /** The optional step to send the result rows to */
+  /**
+   * The optional step to send the result rows to
+   */
   private String outputRowsSourceStep;
 
   private StepMeta outputRowsSourceStepMeta;
@@ -173,12 +205,22 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
   private int[] outputRowsPrecision;
 
-  /** The optional step to send the result files to */
+  /**
+   * The optional step to send the result files to
+   */
   private String resultFilesTargetStep;
 
   private StepMeta resultFilesTargetStepMeta;
 
   private String resultFilesFileNameField;
+
+
+  /**
+   * These fields are related to executor step's "basic" output stream, where a copy of input data will be placed
+   */
+  private String executorsOutputStep;
+
+  private StepMeta executorsOutputStepMeta;
 
   /**
    * This repository object is injected from the outside at runtime or at design time. It comes from either Spoon or
@@ -192,7 +234,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     super(); // allocate BaseStepMeta
 
     parameters = new TransExecutorParameters();
-    outputRowsField = new String[0];
+    outputRowsField = new String[ 0 ];
   }
 
   public Object clone() {
@@ -201,7 +243,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   public String getXML() {
-    StringBuffer retval = new StringBuffer( 300 );
+    StringBuilder retval = new StringBuilder( 300 );
 
     retval.append( "    " ).append(
       XMLHandler.addTagValue( "specification_method", specificationMethod == null ? null : specificationMethod
@@ -238,7 +280,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     // The output side...
     //
     retval.append( "    " ).append(
-      XMLHandler.addTagValue( "execution_result_target_step", executionResultTargetStepMeta == null
+      XMLHandler.addTagValue( F_EXECUTION_RESULT_TARGET_STEP, executionResultTargetStepMeta == null
         ? null : executionResultTargetStepMeta.getName() ) );
     retval.append( "    " ).append( XMLHandler.addTagValue( "execution_time_field", executionTimeField ) );
     retval.append( "    " ).append( XMLHandler.addTagValue( "execution_result_field", executionResultField ) );
@@ -270,24 +312,26 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
         ? null : outputRowsSourceStepMeta.getName() ) );
     for ( int i = 0; i < outputRowsField.length; i++ ) {
       retval.append( "      " ).append( XMLHandler.openTag( "result_rows_field" ) );
-      retval.append( XMLHandler.addTagValue( "name", outputRowsField[i], false ) );
-      retval.append( XMLHandler.addTagValue( "type", ValueMeta.getTypeDesc( outputRowsType[i] ), false ) );
-      retval.append( XMLHandler.addTagValue( "length", outputRowsLength[i], false ) );
-      retval.append( XMLHandler.addTagValue( "precision", outputRowsPrecision[i], false ) );
+      retval.append( XMLHandler.addTagValue( "name", outputRowsField[ i ], false ) );
+      retval.append( XMLHandler.addTagValue( "type", ValueMeta.getTypeDesc( outputRowsType[ i ] ), false ) );
+      retval.append( XMLHandler.addTagValue( "length", outputRowsLength[ i ], false ) );
+      retval.append( XMLHandler.addTagValue( "precision", outputRowsPrecision[ i ], false ) );
       retval.append( XMLHandler.closeTag( "result_rows_field" ) ).append( Const.CR );
     }
 
     retval.append( "    " ).append(
-      XMLHandler.addTagValue( "result_files_target_step", resultFilesTargetStepMeta == null
+      XMLHandler.addTagValue( F_RESULT_FILE_TARGET_STEP, resultFilesTargetStepMeta == null
         ? null : resultFilesTargetStepMeta.getName() ) );
     retval.append( "    " ).append(
       XMLHandler.addTagValue( "result_files_file_name_field", resultFilesFileNameField ) );
 
+    retval.append( "    " ).append(
+      XMLHandler.addTagValue( F_EXECUTOR_OUTPUT_STEP, executorsOutputStepMeta == null ? null : executorsOutputStepMeta.getName() ) );
+
     return retval.toString();
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     try {
       String method = XMLHandler.getTagValue( stepnode, "specification_method" );
       specificationMethod = ObjectLocationSpecificationMethod.getSpecificationMethodByCode( method );
@@ -309,7 +353,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
       // The output side...
       //
-      executionResultTargetStep = XMLHandler.getTagValue( stepnode, "execution_result_target_step" );
+      executionResultTargetStep = XMLHandler.getTagValue( stepnode, F_EXECUTION_RESULT_TARGET_STEP );
       executionTimeField = XMLHandler.getTagValue( stepnode, "execution_time_field" );
       executionResultField = XMLHandler.getTagValue( stepnode, "execution_result_field" );
       executionNrErrorsField = XMLHandler.getTagValue( stepnode, "execution_errors_field" );
@@ -328,23 +372,24 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
       outputRowsSourceStep = XMLHandler.getTagValue( stepnode, "result_rows_target_step" );
 
       int nrFields = XMLHandler.countNodes( stepnode, "result_rows_field" );
-      outputRowsField = new String[nrFields];
-      outputRowsType = new int[nrFields];
-      outputRowsLength = new int[nrFields];
-      outputRowsPrecision = new int[nrFields];
+      outputRowsField = new String[ nrFields ];
+      outputRowsType = new int[ nrFields ];
+      outputRowsLength = new int[ nrFields ];
+      outputRowsPrecision = new int[ nrFields ];
 
       for ( int i = 0; i < nrFields; i++ ) {
 
         Node fieldNode = XMLHandler.getSubNodeByNr( stepnode, "result_rows_field", i );
 
-        outputRowsField[i] = XMLHandler.getTagValue( fieldNode, "name" );
-        outputRowsType[i] = ValueMeta.getType( XMLHandler.getTagValue( fieldNode, "type" ) );
-        outputRowsLength[i] = Const.toInt( XMLHandler.getTagValue( fieldNode, "length" ), -1 );
-        outputRowsPrecision[i] = Const.toInt( XMLHandler.getTagValue( fieldNode, "precision" ), -1 );
+        outputRowsField[ i ] = XMLHandler.getTagValue( fieldNode, "name" );
+        outputRowsType[ i ] = ValueMeta.getType( XMLHandler.getTagValue( fieldNode, "type" ) );
+        outputRowsLength[ i ] = Const.toInt( XMLHandler.getTagValue( fieldNode, "length" ), -1 );
+        outputRowsPrecision[ i ] = Const.toInt( XMLHandler.getTagValue( fieldNode, "precision" ), -1 );
       }
 
-      resultFilesTargetStep = XMLHandler.getTagValue( stepnode, "result_files_target_step" );
+      resultFilesTargetStep = XMLHandler.getTagValue( stepnode, F_RESULT_FILE_TARGET_STEP );
       resultFilesFileNameField = XMLHandler.getTagValue( stepnode, "result_files_file_name_field" );
+      executorsOutputStep = XMLHandler.getTagValue( stepnode, F_EXECUTOR_OUTPUT_STEP );
     } catch ( Exception e ) {
       throw new KettleXMLException( BaseMessages.getString(
         PKG, "TransExecutorMeta.Exception.ErrorLoadingTransExecutorDetailsFromXML" ), e );
@@ -367,10 +412,11 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
     parameters = new TransExecutorParameters( rep, id_step );
 
-    executionResultTargetStep = rep.getStepAttributeString( id_step, "execution_result_target_step" );
+    executionResultTargetStep = rep.getStepAttributeString( id_step, F_EXECUTION_RESULT_TARGET_STEP );
     executionTimeField = rep.getStepAttributeString( id_step, "execution_time_field" );
-    executionNrErrorsField = rep.getStepAttributeString( id_step, "execution_result_field" );
-    executionLinesReadField = rep.getStepAttributeString( id_step, "execution_errors_field" );
+    executionResultField = rep.getStepAttributeString( id_step, "execution_result_field" );
+    executionNrErrorsField = rep.getStepAttributeString( id_step, "execution_errors_field" );
+    executionLinesReadField = rep.getStepAttributeString( id_step, "execution_lines_read_field" );
     executionLinesWrittenField = rep.getStepAttributeString( id_step, "execution_lines_written_field" );
     executionLinesInputField = rep.getStepAttributeString( id_step, "execution_lines_input_field" );
     executionLinesOutputField = rep.getStepAttributeString( id_step, "execution_lines_output_field" );
@@ -384,20 +430,21 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
     outputRowsSourceStep = rep.getStepAttributeString( id_step, "result_rows_target_step" );
     int nrFields = rep.countNrStepAttributes( id_step, "result_rows_field" );
-    outputRowsField = new String[nrFields];
-    outputRowsType = new int[nrFields];
-    outputRowsLength = new int[nrFields];
-    outputRowsPrecision = new int[nrFields];
+    outputRowsField = new String[ nrFields ];
+    outputRowsType = new int[ nrFields ];
+    outputRowsLength = new int[ nrFields ];
+    outputRowsPrecision = new int[ nrFields ];
 
     for ( int i = 0; i < nrFields; i++ ) {
-      outputRowsField[i] = rep.getStepAttributeString( id_step, i, "result_rows_field" );
-      outputRowsType[i] = ValueMeta.getType( rep.getStepAttributeString( id_step, i, "result_rows_type" ) );
-      outputRowsLength[i] = (int) rep.getStepAttributeInteger( id_step, i, "result_rows_length" );
-      outputRowsPrecision[i] = (int) rep.getStepAttributeInteger( id_step, i, "result_rows_precision" );
+      outputRowsField[ i ] = rep.getStepAttributeString( id_step, i, "result_rows_field" );
+      outputRowsType[ i ] = ValueMeta.getType( rep.getStepAttributeString( id_step, i, "result_rows_type" ) );
+      outputRowsLength[ i ] = (int) rep.getStepAttributeInteger( id_step, i, "result_rows_length" );
+      outputRowsPrecision[ i ] = (int) rep.getStepAttributeInteger( id_step, i, "result_rows_precision" );
     }
 
-    resultFilesTargetStep = rep.getStepAttributeString( id_step, "result_files_target_step" );
+    resultFilesTargetStep = rep.getStepAttributeString( id_step, F_RESULT_FILE_TARGET_STEP );
     resultFilesFileNameField = rep.getStepAttributeString( id_step, "result_files_file_name_field" );
+    executorsOutputStep = rep.getStepAttributeString( id_step, F_EXECUTOR_OUTPUT_STEP );
   }
 
   public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
@@ -421,7 +468,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     // The output side...
     //
     rep.saveStepAttribute(
-      id_transformation, id_step, "execution_result_target_step", executionResultTargetStepMeta == null
+      id_transformation, id_step, F_EXECUTION_RESULT_TARGET_STEP, executionResultTargetStepMeta == null
         ? null : executionResultTargetStepMeta.getName() );
     rep.saveStepAttribute( id_transformation, id_step, "execution_time_field", executionTimeField );
     rep.saveStepAttribute( id_transformation, id_step, "execution_result_field", executionResultField );
@@ -452,17 +499,20 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
       ? null : outputRowsSourceStepMeta.getName() );
 
     for ( int i = 0; i < outputRowsField.length; i++ ) {
-      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_name", outputRowsField[i] );
+      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_name", outputRowsField[ i ] );
       rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_type", ValueMeta
-        .getTypeDesc( outputRowsType[i] ) );
-      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_length", outputRowsLength[i] );
-      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_precision", outputRowsPrecision[i] );
+        .getTypeDesc( outputRowsType[ i ] ) );
+      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_length", outputRowsLength[ i ] );
+      rep.saveStepAttribute( id_transformation, id_step, i, "result_rows_field_precision", outputRowsPrecision[ i ] );
     }
 
     rep.saveStepAttribute(
-      id_transformation, id_step, "result_files_target_step", resultFilesTargetStepMeta == null
+      id_transformation, id_step, F_RESULT_FILE_TARGET_STEP, resultFilesTargetStepMeta == null
         ? null : resultFilesTargetStepMeta.getName() );
     rep.saveStepAttribute( id_transformation, id_step, "result_files_file_name_field", resultFilesFileNameField );
+
+    rep.saveStepAttribute(
+      id_transformation, id_step, F_EXECUTOR_OUTPUT_STEP, executorsOutputStepMeta == null ? null : executorsOutputStepMeta.getName() );
   }
 
   public void setDefault() {
@@ -492,26 +542,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     resultFilesFileNameField = "FileName";
   }
 
-  public void getFields( RowMetaInterface row, String origin, RowMetaInterface[] info, StepMeta nextStep,
-    VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
-
-    row.clear();
-
-    if ( nextStep == null && outputRowsSourceStepMeta != null ) {
-
-      for ( int i = 0; i < outputRowsField.length; i++ ) {
-        ValueMetaInterface value =
-          new ValueMeta( outputRowsField[i], outputRowsType[i], outputRowsLength[i], outputRowsPrecision[i] );
-        row.addValueMeta( value );
-      }
-    } else if ( nextStep != null
-      && resultFilesTargetStepMeta != null && nextStep.equals( resultFilesTargetStepMeta ) ) {
-      if ( !Const.isEmpty( resultFilesFileNameField ) ) {
-        ValueMetaInterface value = new ValueMeta( "filename", ValueMeta.TYPE_STRING, 255, 0 );
-        row.addValueMeta( value );
-      }
-    } else if ( nextStep != null
-      && executionResultTargetStepMeta != null && nextStep.equals( executionResultTargetStepMeta ) ) {
+  void prepareExecutionResultsFields( RowMetaInterface row, StepMeta nextStep ) throws KettleException {
+    if ( nextStep != null && executionResultTargetStepMeta != null ) {
       if ( !Const.isEmpty( executionTimeField ) ) {
         ValueMetaInterface value = new ValueMeta( executionTimeField, ValueMeta.TYPE_INTEGER, 15, 0 );
         row.addValueMeta( value );
@@ -572,41 +604,43 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     }
   }
 
+  void prepareExecutionResultsFileFields( RowMetaInterface row, StepMeta nextStep ) {
+    if ( nextStep != null
+      && resultFilesTargetStepMeta != null && nextStep.equals( resultFilesTargetStepMeta ) ) {
+      if ( !Const.isEmpty( resultFilesFileNameField ) ) {
+        ValueMetaInterface value = new ValueMeta( "filename", ValueMeta.TYPE_STRING, 255, 0 );
+        row.addValueMeta( value );
+      }
+    }
+  }
+
+  void prepareResultsRowsFields( RowMetaInterface row ) throws KettleException {
+    for ( int i = 0; i < outputRowsField.length; i++ ) {
+      ValueMetaInterface value =
+        new ValueMeta( outputRowsField[ i ], outputRowsType[ i ], outputRowsLength[ i ], outputRowsPrecision[ i ] );
+      row.addValueMeta( value );
+    }
+  }
+
+
   public String[] getInfoSteps() {
     String[] infoSteps = getStepIOMeta().getInfoStepnames();
     // Return null instead of empty array to preserve existing behavior
     return infoSteps.length == 0 ? null : infoSteps;
   }
 
-  public String[] getTargetSteps() {
-
-    List<String> targetSteps = new ArrayList<String>();
-
-    if ( !Const.isEmpty( resultFilesTargetStep ) ) {
-      targetSteps.add( resultFilesTargetStep );
-    }
-    if ( !Const.isEmpty( outputRowsSourceStep ) ) {
-      targetSteps.add( outputRowsSourceStep );
-    }
-
-    if ( targetSteps.isEmpty() ) {
-      return null;
-    }
-
-    return targetSteps.toArray( new String[targetSteps.size()] );
-  }
-
   @Deprecated
-  public static final synchronized TransMeta loadTransMeta( TransExecutorMeta executorMeta, Repository rep,
-    VariableSpace space ) throws KettleException {
+  public static synchronized TransMeta loadTransMeta( TransExecutorMeta executorMeta, Repository rep,
+                                                            VariableSpace space ) throws KettleException {
     return loadTransMeta( executorMeta, rep, null, space );
   }
 
-  public static final synchronized TransMeta loadTransMeta( TransExecutorMeta executorMeta, Repository rep,
-    IMetaStore metaStore, VariableSpace space ) throws KettleException {
+  public static synchronized TransMeta loadTransMeta( TransExecutorMeta executorMeta, Repository rep,
+                                                            IMetaStore metaStore, VariableSpace space )
+    throws KettleException {
     TransMeta mappingTransMeta = null;
 
-    switch ( executorMeta.getSpecificationMethod() ) {
+    switch( executorMeta.getSpecificationMethod() ) {
       case FILENAME:
         String realFilename = space.environmentSubstitute( executorMeta.getFileName() );
         try {
@@ -635,8 +669,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
               // reads the last revision in the repository...
               //
               mappingTransMeta = rep.loadTransformation( realTransname, repdir, null, true, null ); // TODO: FIXME: pass
-                                                                                                    // in metaStore to
-                                                                                                    // repository?
+              // in metaStore to
+              // repository?
 
               LogChannel.GENERAL.logDetailed(
                 "Loading transformation from repository", "Executor transformation ["
@@ -671,8 +705,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   public void check( List<CheckResultInterface> remarks, TransMeta transMeta, StepMeta stepinfo,
-    RowMetaInterface prev, String[] input, String[] output, RowMetaInterface info, VariableSpace space,
-    Repository repository, IMetaStore metaStore ) {
+                     RowMetaInterface prev, String[] input, String[] output, RowMetaInterface info, VariableSpace space,
+                     Repository repository, IMetaStore metaStore ) {
     CheckResult cr;
     if ( prev == null || prev.size() == 0 ) {
       cr =
@@ -701,7 +735,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   public StepInterface getStep( StepMeta stepMeta, StepDataInterface stepDataInterface, int cnr, TransMeta tr,
-    Trans trans ) {
+                                Trans trans ) {
     return new TransExecutor( stepMeta, stepDataInterface, cnr, tr, trans );
   }
 
@@ -730,8 +764,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
 
   @Override
   public String exportResources( VariableSpace space, Map<String, ResourceDefinition> definitions,
-    ResourceNamingInterface resourceNamingInterface, Repository repository, IMetaStore metaStore )
-    throws KettleException {
+                                 ResourceNamingInterface resourceNamingInterface, Repository repository,
+                                 IMetaStore metaStore ) throws KettleException {
     try {
       // Try to load the transformation from repository or file.
       // Modify this recursively too...
@@ -792,6 +826,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
         PKG, "TransExecutorMeta.ResultRowsStream.Description" ), StreamIcon.TARGET, null ) );
       ioMeta.addStream( new Stream( StreamType.TARGET, resultFilesTargetStepMeta, BaseMessages.getString(
         PKG, "TransExecutorMeta.ResultFilesStream.Description" ), StreamIcon.TARGET, null ) );
+      ioMeta.addStream( new Stream( StreamType.TARGET, executorsOutputStepMeta, BaseMessages.getString(
+        PKG, "TransExecutorMeta.ExecutorOutputStream.Description" ), StreamIcon.OUTPUT, null ) );
     }
     return ioMeta;
   }
@@ -799,17 +835,15 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   /**
    * When an optional stream is selected, this method is called to handled the ETL metadata implications of that.
    *
-   * @param stream
-   *          The optional stream to handle.
+   * @param stream The optional stream to handle.
    */
   public void handleStreamSelection( StreamInterface stream ) {
     // This step targets another step.
     // Make sure that we don't specify the same step for more than 1 target...
-    //
     List<StreamInterface> targets = getStepIOMeta().getTargetStreams();
     int index = targets.indexOf( stream );
     StepMeta step = targets.get( index ).getStepMeta();
-    switch ( index ) {
+    switch( index ) {
       case 0:
         setExecutionResultTargetStepMeta( step );
         break;
@@ -819,6 +853,8 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
       case 2:
         setResultFilesTargetStepMeta( step );
         break;
+      case 3:
+        setExecutorsOutputStepMeta( step );
       default:
         break;
     }
@@ -836,6 +872,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     executionResultTargetStepMeta = StepMeta.findStep( steps, executionResultTargetStep );
     outputRowsSourceStepMeta = StepMeta.findStep( steps, outputRowsSourceStep );
     resultFilesTargetStepMeta = StepMeta.findStep( steps, resultFilesTargetStep );
+    executorsOutputStepMeta = StepMeta.findStep( steps, executorsOutputStep );
   }
 
   public TransformationType[] getSupportedTransformationTypes() {
@@ -864,8 +901,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param directoryPath
-   *          the directoryPath to set
+   * @param directoryPath the directoryPath to set
    */
   public void setDirectoryPath( String directoryPath ) {
     this.directoryPath = directoryPath;
@@ -879,8 +915,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param fileName
-   *          the fileName to set
+   * @param fileName the fileName to set
    */
   public void setFileName( String fileName ) {
     this.fileName = fileName;
@@ -894,8 +929,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param mappingParameters
-   *          the mappingParameters to set
+   * @param mappingParameters the mappingParameters to set
    */
   public void setMappingParameters( TransExecutorParameters mappingParameters ) {
     this.parameters = mappingParameters;
@@ -909,8 +943,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param repository
-   *          the repository to set
+   * @param repository the repository to set
    */
   public void setRepository( Repository repository ) {
     this.repository = repository;
@@ -924,8 +957,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param specificationMethod
-   *          the specificationMethod to set
+   * @param specificationMethod the specificationMethod to set
    */
   public void setSpecificationMethod( ObjectLocationSpecificationMethod specificationMethod ) {
     this.specificationMethod = specificationMethod;
@@ -939,8 +971,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param transName
-   *          the transName to set
+   * @param transName the transName to set
    */
   public void setTransName( String transName ) {
     this.transName = transName;
@@ -954,8 +985,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param transObjectId
-   *          the transObjectId to set
+   * @param transObjectId the transObjectId to set
    */
   public void setTransObjectId( ObjectId transObjectId ) {
     this.transObjectId = transObjectId;
@@ -969,8 +999,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param parameters
-   *          the parameters to set
+   * @param parameters the parameters to set
    */
   public void setParameters( TransExecutorParameters parameters ) {
     this.parameters = parameters;
@@ -984,8 +1013,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionTimeField
-   *          the executionTimeField to set
+   * @param executionTimeField the executionTimeField to set
    */
   public void setExecutionTimeField( String executionTimeField ) {
     this.executionTimeField = executionTimeField;
@@ -999,8 +1027,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionResultField
-   *          the executionResultField to set
+   * @param executionResultField the executionResultField to set
    */
   public void setExecutionResultField( String executionResultField ) {
     this.executionResultField = executionResultField;
@@ -1014,8 +1041,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionNrErrorsField
-   *          the executionNrErrorsField to set
+   * @param executionNrErrorsField the executionNrErrorsField to set
    */
   public void setExecutionNrErrorsField( String executionNrErrorsField ) {
     this.executionNrErrorsField = executionNrErrorsField;
@@ -1029,8 +1055,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesReadField
-   *          the executionLinesReadField to set
+   * @param executionLinesReadField the executionLinesReadField to set
    */
   public void setExecutionLinesReadField( String executionLinesReadField ) {
     this.executionLinesReadField = executionLinesReadField;
@@ -1044,8 +1069,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesWrittenField
-   *          the executionLinesWrittenField to set
+   * @param executionLinesWrittenField the executionLinesWrittenField to set
    */
   public void setExecutionLinesWrittenField( String executionLinesWrittenField ) {
     this.executionLinesWrittenField = executionLinesWrittenField;
@@ -1059,8 +1083,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesInputField
-   *          the executionLinesInputField to set
+   * @param executionLinesInputField the executionLinesInputField to set
    */
   public void setExecutionLinesInputField( String executionLinesInputField ) {
     this.executionLinesInputField = executionLinesInputField;
@@ -1074,8 +1097,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesOutputField
-   *          the executionLinesOutputField to set
+   * @param executionLinesOutputField the executionLinesOutputField to set
    */
   public void setExecutionLinesOutputField( String executionLinesOutputField ) {
     this.executionLinesOutputField = executionLinesOutputField;
@@ -1089,8 +1111,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesRejectedField
-   *          the executionLinesRejectedField to set
+   * @param executionLinesRejectedField the executionLinesRejectedField to set
    */
   public void setExecutionLinesRejectedField( String executionLinesRejectedField ) {
     this.executionLinesRejectedField = executionLinesRejectedField;
@@ -1104,8 +1125,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesUpdatedField
-   *          the executionLinesUpdatedField to set
+   * @param executionLinesUpdatedField the executionLinesUpdatedField to set
    */
   public void setExecutionLinesUpdatedField( String executionLinesUpdatedField ) {
     this.executionLinesUpdatedField = executionLinesUpdatedField;
@@ -1119,8 +1139,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLinesDeletedField
-   *          the executionLinesDeletedField to set
+   * @param executionLinesDeletedField the executionLinesDeletedField to set
    */
   public void setExecutionLinesDeletedField( String executionLinesDeletedField ) {
     this.executionLinesDeletedField = executionLinesDeletedField;
@@ -1134,8 +1153,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionFilesRetrievedField
-   *          the executionFilesRetrievedField to set
+   * @param executionFilesRetrievedField the executionFilesRetrievedField to set
    */
   public void setExecutionFilesRetrievedField( String executionFilesRetrievedField ) {
     this.executionFilesRetrievedField = executionFilesRetrievedField;
@@ -1149,8 +1167,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionExitStatusField
-   *          the executionExitStatusField to set
+   * @param executionExitStatusField the executionExitStatusField to set
    */
   public void setExecutionExitStatusField( String executionExitStatusField ) {
     this.executionExitStatusField = executionExitStatusField;
@@ -1164,8 +1181,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLogTextField
-   *          the executionLogTextField to set
+   * @param executionLogTextField the executionLogTextField to set
    */
   public void setExecutionLogTextField( String executionLogTextField ) {
     this.executionLogTextField = executionLogTextField;
@@ -1179,8 +1195,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionLogChannelIdField
-   *          the executionLogChannelIdField to set
+   * @param executionLogChannelIdField the executionLogChannelIdField to set
    */
   public void setExecutionLogChannelIdField( String executionLogChannelIdField ) {
     this.executionLogChannelIdField = executionLogChannelIdField;
@@ -1194,8 +1209,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param groupSize
-   *          the groupSize to set
+   * @param groupSize the groupSize to set
    */
   public void setGroupSize( String groupSize ) {
     this.groupSize = groupSize;
@@ -1209,8 +1223,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param groupField
-   *          the groupField to set
+   * @param groupField the groupField to set
    */
   public void setGroupField( String groupField ) {
     this.groupField = groupField;
@@ -1224,8 +1237,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param groupTime
-   *          the groupTime to set
+   * @param groupTime the groupTime to set
    */
   public void setGroupTime( String groupTime ) {
     this.groupTime = groupTime;
@@ -1244,8 +1256,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionResultTargetStep
-   *          the executionResultTargetStep to set
+   * @param executionResultTargetStep the executionResultTargetStep to set
    */
   public void setExecutionResultTargetStep( String executionResultTargetStep ) {
     this.executionResultTargetStep = executionResultTargetStep;
@@ -1259,8 +1270,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param executionResultTargetStepMeta
-   *          the executionResultTargetStepMeta to set
+   * @param executionResultTargetStepMeta the executionResultTargetStepMeta to set
    */
   public void setExecutionResultTargetStepMeta( StepMeta executionResultTargetStepMeta ) {
     this.executionResultTargetStepMeta = executionResultTargetStepMeta;
@@ -1274,8 +1284,7 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   }
 
   /**
-   * @param resultFilesFileNameField
-   *          the resultFilesFileNameField to set
+   * @param resultFilesFileNameField the resultFilesFileNameField to set
    */
   public void setResultFilesFileNameField( String resultFilesFileNameField ) {
     this.resultFilesFileNameField = resultFilesFileNameField;
@@ -1300,12 +1309,9 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
   /**
    * Load the referenced object
    *
-   * @param index
-   *          the object index to load
-   * @param rep
-   *          the repository
-   * @param space
-   *          the variable space to use
+   * @param index the object index to load
+   * @param rep   the repository
+   * @param space the variable space to use
    * @return the referenced object once loaded
    * @throws KettleException
    */
@@ -1386,4 +1392,19 @@ public class TransExecutorMeta extends BaseStepMeta implements StepMetaInterface
     this.resultFilesTargetStepMeta = resultFilesTargetStepMeta;
   }
 
+  public String getExecutorsOutputStep() {
+    return executorsOutputStep;
+  }
+
+  public void setExecutorsOutputStep( String executorsOutputStep ) {
+    this.executorsOutputStep = executorsOutputStep;
+  }
+
+  public StepMeta getExecutorsOutputStepMeta() {
+    return executorsOutputStepMeta;
+  }
+
+  public void setExecutorsOutputStepMeta( StepMeta executorsOutputStepMeta ) {
+    this.executorsOutputStepMeta = executorsOutputStepMeta;
+  }
 }

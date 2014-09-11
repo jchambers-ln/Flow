@@ -22,8 +22,6 @@
 
 package org.pentaho.di.trans.steps.tableinput;
 
-import java.util.List;
-
 import org.pentaho.di.core.CheckResult;
 import org.pentaho.di.core.CheckResultInterface;
 import org.pentaho.di.core.Const;
@@ -31,12 +29,14 @@ import org.pentaho.di.core.database.Database;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.exception.KettleDatabaseException;
 import org.pentaho.di.core.exception.KettleException;
+import org.pentaho.di.core.exception.KettlePluginException;
 import org.pentaho.di.core.exception.KettleStepException;
 import org.pentaho.di.core.exception.KettleXMLException;
 import org.pentaho.di.core.row.RowDataUtil;
 import org.pentaho.di.core.row.RowMeta;
 import org.pentaho.di.core.row.RowMetaInterface;
 import org.pentaho.di.core.row.ValueMetaInterface;
+import org.pentaho.di.core.row.value.ValueMetaFactory;
 import org.pentaho.di.core.variables.VariableSpace;
 import org.pentaho.di.core.xml.XMLHandler;
 import org.pentaho.di.i18n.BaseMessages;
@@ -50,6 +50,7 @@ import org.pentaho.di.trans.step.BaseStepMeta;
 import org.pentaho.di.trans.step.StepDataInterface;
 import org.pentaho.di.trans.step.StepIOMeta;
 import org.pentaho.di.trans.step.StepIOMetaInterface;
+import org.pentaho.di.trans.step.StepInjectionMetaEntry;
 import org.pentaho.di.trans.step.StepInterface;
 import org.pentaho.di.trans.step.StepMeta;
 import org.pentaho.di.trans.step.StepMetaInterface;
@@ -59,6 +60,8 @@ import org.pentaho.di.trans.step.errorhandling.StreamInterface;
 import org.pentaho.di.trans.step.errorhandling.StreamInterface.StreamType;
 import org.pentaho.metastore.api.IMetaStore;
 import org.w3c.dom.Node;
+
+import java.util.List;
 
 /*
  * Created on 2-jun-2003
@@ -142,8 +145,7 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
     this.sql = sql;
   }
 
-  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore )
-    throws KettleXMLException {
+  public void loadXML( Node stepnode, List<DatabaseMeta> databases, IMetaStore metaStore ) throws KettleXMLException {
     readData( stepnode, databases );
   }
 
@@ -152,8 +154,7 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
     return retval;
   }
 
-  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases )
-    throws KettleXMLException {
+  private void readData( Node stepnode, List<? extends SharedObjectInterface> databases ) throws KettleXMLException {
     try {
       databaseMeta = DatabaseMeta.findDatabase( databases, XMLHandler.getTagValue( stepnode, "connection" ) );
       sql = XMLHandler.getTagValue( stepnode, "sql" );
@@ -177,6 +178,11 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
     rowLimit = "0";
   }
 
+  protected Database getDatabase() {
+    // Added for test purposes
+    return new Database( loggingObject, databaseMeta );
+  }
+
   public void getFields( RowMetaInterface row, String origin, RowMetaInterface[] info, StepMeta nextStep,
     VariableSpace space, Repository repository, IMetaStore metaStore ) throws KettleStepException {
     if ( databaseMeta == null ) {
@@ -185,7 +191,7 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
 
     boolean param = false;
 
-    Database db = new Database( loggingObject, databaseMeta );
+    Database db = getDatabase();
     databases = new Database[] { db }; // keep track of it for canceling purposes...
 
     // First try without connecting to the database... (can be S L O W)
@@ -239,6 +245,21 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
         db.disconnect();
       }
     }
+    if ( isLazyConversionActive() ) {
+      for ( int i = 0; i < row.size(); i++ ) {
+        ValueMetaInterface v = row.getValueMeta( i );
+        try {
+          if ( v.getType() == ValueMetaInterface.TYPE_STRING ) {
+            ValueMetaInterface storageMeta = ValueMetaFactory.cloneValueMeta( v );
+            storageMeta.setStorageType( ValueMetaInterface.STORAGE_TYPE_NORMAL );
+            v.setStorageMetadata( storageMeta );
+            v.setStorageType( ValueMetaInterface.STORAGE_TYPE_BINARY_STRING );
+          }
+        } catch ( KettlePluginException e ) {
+          throw new KettleStepException( "Unable to clone meta for lazy conversion: " + Const.CR + v, e );
+        }
+      }
+    }
   }
 
   public String getXML() {
@@ -257,8 +278,7 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
     return retval.toString();
   }
 
-  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases )
-    throws KettleException {
+  public void readRep( Repository rep, IMetaStore metaStore, ObjectId id_step, List<DatabaseMeta> databases ) throws KettleException {
     try {
       databaseMeta = rep.loadDatabaseMetaFromStepAttribute( id_step, "id_connection", databases );
 
@@ -280,8 +300,7 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
     }
   }
 
-  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step )
-    throws KettleException {
+  public void saveRep( Repository rep, IMetaStore metaStore, ObjectId id_transformation, ObjectId id_step ) throws KettleException {
     try {
       rep.saveDatabaseMetaStepAttribute( id_transformation, id_step, "id_connection", databaseMeta );
       rep.saveStepAttribute( id_transformation, id_step, "sql", sql );
@@ -537,5 +556,14 @@ public class TableInputMeta extends BaseStepMeta implements StepMetaInterface {
    */
   public StepMeta getLookupFromStep() {
     return getStepIOMeta().getInfoStreams().get( 0 ).getStepMeta();
+  }
+
+  @Override
+  public TableInputMetaInjection getStepMetaInjectionInterface() {
+    return new TableInputMetaInjection( this );
+  }
+
+  public List<StepInjectionMetaEntry> extractStepMetadataEntries() throws KettleException {
+    return getStepMetaInjectionInterface().extractStepMetadataEntries();
   }
 }

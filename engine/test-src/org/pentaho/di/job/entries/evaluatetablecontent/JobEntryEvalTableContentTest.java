@@ -1,7 +1,11 @@
 package org.pentaho.di.job.entries.evaluatetablecontent;
 
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,20 +18,18 @@ import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.pentaho.di.core.Const;
+import org.pentaho.di.core.KettleClientEnvironment;
 import org.pentaho.di.core.Result;
 import org.pentaho.di.core.database.BaseDatabaseMeta;
 import org.pentaho.di.core.database.DatabaseInterface;
 import org.pentaho.di.core.database.DatabaseMeta;
 import org.pentaho.di.core.database.InfobrightDatabaseMeta;
 import org.pentaho.di.core.exception.KettleDatabaseException;
-import org.pentaho.di.core.logging.KettleLogStore;
 import org.pentaho.di.core.plugins.DatabasePluginType;
-import org.pentaho.di.core.plugins.Plugin;
 import org.pentaho.di.core.plugins.PluginInterface;
 import org.pentaho.di.core.plugins.PluginRegistry;
 import org.pentaho.di.core.plugins.PluginTypeInterface;
 import org.pentaho.di.core.row.ValueMetaInterface;
-import org.pentaho.di.core.row.value.ValueMetaPluginType;
 import org.pentaho.di.job.Job;
 import org.pentaho.di.job.JobMeta;
 import org.pentaho.di.job.entry.JobEntryCopy;
@@ -97,27 +99,7 @@ public class JobEntryEvalTableContentTest {
 
   @BeforeClass
   public static void setUpBeforeClass() throws Exception {
-    PluginRegistry.getInstance().registerPluginType( ValueMetaPluginType.class );
-
-    Map<Class<?>, String> classes = new HashMap<Class<?>, String>();
-    classes.put( ValueMetaInterface.class, "org.pentaho.di.core.row.value.ValueMetaString" );
-    Plugin p1 =
-      new Plugin(
-        new String[] { "2" }, ValueMetaPluginType.class, ValueMetaInterface.class, "", "", "", "", false,
-        true, classes, null, null, null );
-
-    classes = new HashMap<Class<?>, String>();
-    classes.put( ValueMetaInterface.class, "org.pentaho.di.core.row.value.ValueMetaInteger" );
-    Plugin p2 =
-      new Plugin(
-        new String[] { "5" }, ValueMetaPluginType.class, ValueMetaInterface.class, "", "", "", "", false,
-        true, classes, null, null, null );
-
-    PluginRegistry.getInstance().registerPlugin( ValueMetaPluginType.class, p1 );
-    PluginRegistry.getInstance().registerPlugin( ValueMetaPluginType.class, p2 );
-
-    KettleLogStore.init();
-
+    KettleClientEnvironment.init();
     dbMap.put( DatabaseInterface.class, DBMockIface.class.getName() );
     dbMap.put( InfobrightDatabaseMeta.class, InfobrightDatabaseMeta.class.getName() );
 

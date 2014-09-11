@@ -86,6 +86,7 @@ import org.pentaho.di.ui.core.widget.TableView;
 import org.pentaho.di.ui.core.widget.TextVar;
 import org.pentaho.di.ui.trans.step.BaseStepDialog;
 import org.pentaho.di.ui.trans.step.TableItemInsertListener;
+import org.pentaho.di.ui.util.HelpUtils;
 
 /**
  * Dialog for the Dimension Lookup/Update step.
@@ -1218,7 +1219,7 @@ public class DimensionLookupDialog extends BaseStepDialog implements StepDialogI
     String[] fieldNames = entries.toArray( new String[entries.size()] );
     Const.sortStrings( fieldNames );
     ciKey[1].setComboValues( fieldNames );
-    ciKey[1].setComboValues( fieldNames );
+    ciUpIns[1].setComboValues( fieldNames );
   }
 
   public void setAutoincUse() {
@@ -1776,7 +1777,7 @@ public class DimensionLookupDialog extends BaseStepDialog implements StepDialogI
 
   @Override
   protected Button createHelpButton( Shell shell, StepMeta stepMeta, PluginInterface plugin ) {
-    return createHelpButton( helpComp, "Step documentation for " + plugin.getName(), plugin );
+    return HelpUtils.createHelpButton( helpComp, HelpUtils.getHelpDialogTitle( plugin ), plugin );
   }
 
   // Generate code for create table...
